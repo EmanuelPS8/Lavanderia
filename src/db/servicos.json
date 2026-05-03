@@ -1,0 +1,9 @@
+[
+    {
+        "id": "uuid",
+        "nome": "varchar",
+        "descricao": "text",
+        "preco_base": "decimal",
+        "ativo": "boolean"
+    }
+]
