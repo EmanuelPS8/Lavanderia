@@ -1,0 +1,17 @@
+[
+  {
+    "id": "uuid",
+    "nome": "varchar",
+    "descricao": "text"
+  },
+  {
+    "id": "1a2b3c4d-5678-90ab-cdef-1234567890ab",
+    "nome": "Camisa",
+    "descricao": "Peça de roupa para a parte superior do corpo."
+  },
+  {
+    "id": "2b3c4d5e-6789-0abc-def1-234567890abc",
+    "nome": "Calça",
+    "descricao": "Peça de roupa para a parte inferior do corpo."
+  }
+]
