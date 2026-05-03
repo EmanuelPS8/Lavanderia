@@ -12,7 +12,6 @@ router.use('/pedidos', pedidosRoutes);
 router.use('/clientes', clienteRoutes);
 router.use('/pedidos-itens', pedidosItensRoutes);
 router.use('/pedido-item-servicos', pedidoItemServicosRoutes);
-router.use('/servicos', servicosRoutes);''
 router.use('/servicos', servicosRoutes);
 router.use('/tipos-roupa', tiposRoupaRoutes);
 
