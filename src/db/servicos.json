@@ -7,10 +7,27 @@
     "ativo": "boolean"
   },
   {
-    "id": "542652b1-18d5-4d41-8b98-48f03e6ab55e",
-    "nome": "Lavagem Simples",
-    "descricao": "Lavagem padrão sem tratamento especial",
-    "preco_base": 10.0,
-    "ativo": true
+    "id": "ed0999ca-2d35-40e3-be4e-eccc18b6de2e",
+    "nome": "secaasd",
+    "preco": 10,
+    "descricao": "asdasdaveículo"
+  },
+  {
+    "id": "41056dda-36a8-413f-8757-99544d92bee7",
+    "nome": "secaasd",
+    "preco": 10,
+    "descricao": "asdasdaveículo"
+  },
+  {
+    "id": "bbde0bc0-e09f-4279-b28c-cb9aac0b275a",
+    "nome": "secaasd",
+    "preco": 10,
+    "descricao": "asdasdaveículo"
+  },
+  {
+    "id": "1e57aa21-9667-4bf0-83bd-b86f8582c2de",
+    "nome": "aaaaaaaaaaa",
+    "preco": 10,
+    "descricao": "Lavagem do veículo"
   }
 ]

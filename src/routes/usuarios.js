@@ -42,7 +42,7 @@ var usuariosDB = loadUsuarios();
 /**
  * @swagger
  * tags:
- *   name: Usuarios
+ *   name: Usuarios - Francielle Ferrari
  *   description: Gerenciamento de usuários do sistema
  */
 
@@ -64,7 +64,7 @@ function saveUsuarios() {
  * /usuarios:
  *   get:
  *     summary: Retorna todos os usuários (permite filtrar por nome ou data)
- *     tags: [Usuarios]
+ *     tags: [Usuarios - Francielle Ferrari]
  *     parameters:
  *       - in: query
  *         name: nome
@@ -107,7 +107,7 @@ router.get('/', (req, res) => {
  * /usuarios/{id}:
  *   get:
  *     summary: Retorna um usuário pelo ID
- *     tags: [Usuarios]
+ *     tags: [Usuarios - Francielle Ferrari]
  *     parameters:
  *       - in: path
  *         name: id
@@ -134,7 +134,7 @@ router.get('/:id', (req, res) => {
  * /usuarios:
  *   post:
  *     summary: Cria um novo usuário
- *     tags: [Usuarios]
+ *     tags: [Usuarios - Francielle Ferrari]
  *     requestBody:
  *       required: true
  *       content:
@@ -170,7 +170,7 @@ router.post('/', (req, res) => {
  * /usuarios/{id}:
  *   put:
  *     summary: Atualiza um usuário pelo ID
- *     tags: [Usuarios]
+ *     tags: [Usuarios - Francielle Ferrari]
  *     parameters:
  *       - in: path
  *         name: id
@@ -217,7 +217,7 @@ router.put('/:id', (req, res) => {
  * /usuarios/{id}:
  *   delete:
  *     summary: Remove um usuário pelo ID
- *     tags: [Usuarios]
+ *     tags: [Usuarios - Francielle Ferrari]
  *     parameters:
  *       - in: path
  *         name: id

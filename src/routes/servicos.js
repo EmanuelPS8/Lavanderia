@@ -38,7 +38,7 @@ var servicosDB = loadServicos();
 /**
  * @swagger
  * tags:
- *   name: Serviços
+ *   name: Serviços - Otávio Frasson
  *   description: Gerenciamento de serviços
  */
 
@@ -60,7 +60,7 @@ function saveServicos() {
  * /servicos:
  *   get:
  *     summary: Retorna todos os serviços
- *     tags: [Serviços]
+ *     tags: [Serviços - Otávio Frasson]
  *     responses:
  *       200:
  *         description: Lista de todos os serviços
@@ -82,7 +82,7 @@ router.get('/', (req, res) => {
  * /servicos/{id}:
  *   get:
  *     summary: Retorna um serviço pelo ID
- *     tags: [Serviços]
+ *     tags: [Serviços - Otávio Frasson]
  *     parameters:
  *       - in: path
  *         name: id
@@ -115,7 +115,7 @@ router.get('/:id', (req, res) => {
  * /servicos:
  *   post:
  *     summary: Cria um novo serviço
- *     tags: [Serviços]
+ *     tags: [Serviços - Otávio Frasson]
  *     requestBody:
  *       required: true
  *       content:
@@ -145,7 +145,7 @@ router.post('/', (req, res) => {
  * /servicos/{id}:
  *   put:
  *     summary: Atualiza um serviço pelo ID
- *     tags: [Serviços]
+ *     tags: [Serviços - Otávio Frasson]
  *     parameters:
  *       - in: path
  *         name: id
@@ -187,7 +187,7 @@ router.put('/:id', (req, res) => {
  * /servicos/{id}:
  *   delete:
  *     summary: Remove um serviço pelo ID
- *     tags: [Serviços]
+ *     tags: [Serviços - Otávio Frasson]
  *     parameters:
  *       - in: path
  *         name: id

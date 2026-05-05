@@ -16,5 +16,23 @@
     "descricao": "Descrição do item de pedido",
     "status": "pendente",
     "valor_total": 255
+  },
+  {
+    "id": "3b928c3f-386e-4e92-a97a-16f60eda7826",
+    "pedido_id": "pedido-321",
+    "tipo_roupa_id": "roupa-123",
+    "quantidade": 1,
+    "descricao": "Descrição do pedido item",
+    "status": "pendente",
+    "valor_total": 10
+  },
+  {
+    "id": "1f4e5065-20b8-49e0-9fed-10bdc6b4d93f",
+    "pedido_id": "pedido-321",
+    "tipo_roupa_id": "roupa-123",
+    "quantidade": 1,
+    "descricao": "Descrição do pedido item",
+    "status": "pendente",
+    "valor_total": 10
   }
 ]

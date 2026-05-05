@@ -49,7 +49,7 @@ var pedidoItemServicosDB = loadPedidoItemServicos();
 /**
  * @swagger
  * tags:
- *   name: PedidoItemServicos
+ *   name: PedidoItemServicos - Emanuel Pereira Schlickmann
  *   description: Gerenciamento de serviços dos itens de pedido
  */
 
@@ -71,7 +71,7 @@ function savePedidoItemServicos() {
  * /pedido-item-servicos:
  *   get:
  *     summary: Retorna todos os pedido item servicos
- *     tags: [PedidoItemServicos]
+ *     tags: [PedidoItemServicos - Emanuel Pereira Schlickmann]
  *     responses:
  *       200:
  *         description: Lista de todos os pedido item servicos
@@ -93,7 +93,7 @@ router.get('/', (req, res) => {
  * /pedido-item-servicos/{id}:
  *   get:
  *     summary: Retorna um pedido item servico pelo ID
- *     tags: [PedidoItemServicos]
+ *     tags: [PedidoItemServicos - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id
@@ -126,7 +126,7 @@ router.get('/:id', (req, res) => {
  * /pedido-item-servicos:
  *   post:
  *     summary: Cria um novo pedido item servico
- *     tags: [PedidoItemServicos]
+ *     tags: [PedidoItemServicos - Emanuel Pereira Schlickmann]
  *     requestBody:
  *       required: true
  *       content:
@@ -157,7 +157,7 @@ router.post('/', (req, res) => {
  * /pedido-item-servicos/{id}:
  *   put:
  *     summary: Atualiza um pedido item servico pelo ID
- *     tags: [PedidoItemServicos]
+ *     tags: [PedidoItemServicos - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id
@@ -200,7 +200,7 @@ router.put('/:id', (req, res) => {
  * /pedido-item-servicos/{id}:
  *   delete:
  *     summary: Remove um pedido item servico pelo ID
- *     tags: [PedidoItemServicos]
+ *     tags: [PedidoItemServicos - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id

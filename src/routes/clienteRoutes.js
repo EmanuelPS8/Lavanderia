@@ -57,7 +57,7 @@ var clientesDB = loadClientes();
 /**
  * @swagger
  * tags:
- *   name: Clientes
+ *   name: Clientes - Emanuel Pereira Schlickmann
  *   description: Gerenciamento de clientes
  */
 
@@ -79,7 +79,7 @@ function saveClientes() {
  * /clientes:
  *   get:
  *     summary: Retorna todos os clientes
- *     tags: [Clientes]
+ *     tags: [Clientes - Emanuel Pereira Schlickmann]
  *     responses:
  *       200:
  *         description: Lista de todos os clientes
@@ -101,7 +101,7 @@ router.get('/', (req, res) => {
  * /clientes/{id}:
  *   get:
  *     summary: Retorna um cliente pelo ID
- *     tags: [Clientes]
+ *     tags: [Clientes - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id
@@ -134,7 +134,7 @@ router.get('/:id', (req, res) => {
  * /clientes:
  *   post:
  *     summary: Cria um novo cliente
- *     tags: [Clientes]
+ *     tags: [Clientes - Emanuel Pereira Schlickmann]
  *     requestBody:
  *       required: true
  *       content:
@@ -164,7 +164,7 @@ router.post('/', (req, res) => {
  * /clientes/{id}:
  *   put:
  *     summary: Atualiza um cliente pelo ID
- *     tags: [Clientes]
+ *     tags: [Clientes - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id
@@ -206,7 +206,7 @@ router.put('/:id', (req, res) => {
  * /clientes/{id}:
  *   delete:
  *     summary: Remove um cliente pelo ID
- *     tags: [Clientes]
+ *     tags: [Clientes - Emanuel Pereira Schlickmann]
  *     parameters:
  *       - in: path
  *         name: id

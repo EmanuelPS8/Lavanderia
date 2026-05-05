@@ -66,16 +66,16 @@ function savePedidosItens() {
 /**
  * @swagger
  * tags:
- *   name: Pedidos Itens
+ *   name: Pedidos Itens - Otávio Frasson
  *   description: Gerenciamento de pedidos itens
  */
 
 /**
  * @swagger
- * /pedidos_itens:
+ * /pedidos-itens:
  *   get:
  *     summary: Retorna todos os pedidos itens
- *     tags: [Pedidos Itens]
+ *     tags: [Pedidos Itens - Otávio Frasson]
  *     responses:
  *       200:
  *         description: Lista de todos os pedidos itens
@@ -94,10 +94,10 @@ router.get('/', (req, res) => {
 
 /**
  * @swagger
- * /pedidos_itens/{id}:
+ * /pedidos-itens/{id}:
  *   get:
  *     summary: Retorna um pedido item pelo ID
- *     tags: [Pedidos Itens]
+ *     tags: [Pedidos Itens - Otávio Frasson]
  *     parameters:
  *       - in: path
  *         name: id
@@ -127,10 +127,10 @@ router.get('/:id', (req, res) => {
 
 /**
  * @swagger
- * /pedidos_itens:
+ * /pedidos-itens:
  *   post:
  *     summary: Cria um novo pedido item
- *     tags: [Pedidos Itens]
+ *     tags: [Pedidos Itens - Otávio Frasson]
  *     requestBody:
  *       required: true
  *       content:
@@ -157,10 +157,10 @@ router.post('/', (req, res) => {
 
 /**
  * @swagger
- * /pedidos_itens/{id}:
+ * /pedidos-itens/{id}:
  *   put:
  *     summary: Atualiza um pedido item pelo ID
- *     tags: [Pedidos Itens]
+ *     tags: [Pedidos Itens - Otávio Frasson]
  *     parameters:
  *       - in: path
  *         name: id
@@ -199,10 +199,10 @@ router.put('/:id', (req, res) => {
 
 /**
  * @swagger
- * /pedidos_itens/{id}:
+ * /pedidos-itens/{id}:
  *   delete:
  *     summary: Remove um pedido item pelo ID
- *     tags: [Pedidos Itens]
+ *     tags: [Pedidos Itens - Francielle Ferrari]
  *     parameters:
  *       - in: path
  *         name: id

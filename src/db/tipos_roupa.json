@@ -13,5 +13,29 @@
     "id": "2b3c4d5e-6789-0abc-def1-234567890abc",
     "nome": "Calça",
     "descricao": "Peça de roupa para a parte inferior do corpo."
+  },
+  {
+    "id": "37699706-1c13-459e-9a3e-9f5c78522e8b",
+    "nome": "Camisa",
+    "descricao": "Peça de roupa para a parte superior do corpo."
+  },
+  {
+    "id": "da7fbd78-3c90-4c7b-92ca-f541eb1049a9",
+    "nome": "calca",
+    "descricao": "Peça de roupa para a parte superior do corpo."
+  },
+  {
+    "id": "75020043-6389-4015-bce4-d93b1f9f3a90",
+    "nome": "cacamisa",
+    "descricao": "Peça de roupa para a parte superior do corpo."
+  },
+  {
+    "id": "dcc89b58-f725-44b2-8e41-4117907b38ca",
+    "descricao": "Peça ."
+  },
+  {
+    "id": "c978df7d-428e-4073-9bdd-52ae1d15b462",
+    "nome": "cacamisa",
+    "descricao": "Peça de roupa para a parte superior do corpo."
   }
 ]

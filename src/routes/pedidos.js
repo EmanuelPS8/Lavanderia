@@ -53,7 +53,7 @@ let pedidosDB = loadPedidos();
 /**
  * @swagger
  * tags:
- *   name: Pedidos
+ *   name: Pedidos - Betina Lima
  *   description: Gerenciamento de pedidos
  */
 
@@ -74,7 +74,7 @@ function savePedidos() {
  * /pedidos:
  *   get:
  *     summary: Retorna todos os pedidos
- *     tags: [Pedidos]
+ *     tags: [Pedidos - Betina Lima]
  *     responses:
  *       200:
  *         description: Lista de pedidos
@@ -95,7 +95,7 @@ router.get('/', (req, res) => {
  * /pedidos/{id}:
  *   get:
  *     summary: Retorna um pedido pelo ID
- *     tags: [Pedidos]
+ *     tags: [Pedidos - Betina Lima]
  *     parameters:
  *       - in: path
  *         name: id
@@ -130,7 +130,7 @@ router.get('/:id', (req, res) => {
  * /pedidos:
  *   post:
  *     summary: Cria um novo pedido
- *     tags: [Pedidos]
+ *     tags: [Pedidos - Betina Lima]
  *     requestBody:
  *       required: true
  *       content:
@@ -160,7 +160,7 @@ router.post('/', (req, res) => {
  * /pedidos/{id}:
  *   put:
  *     summary: Atualiza um pedido
- *     tags: [Pedidos]
+ *     tags: [Pedidos - Betina Lima]
  *     parameters:
  *       - in: path
  *         name: id
@@ -204,7 +204,7 @@ router.put('/:id', (req, res) => {
  * /pedidos/{id}:
  *   delete:
  *     summary: Remove um pedido
- *     tags: [Pedidos]
+ *     tags: [Pedidos - Betina Lima]
  *     parameters:
  *       - in: path
  *         name: id

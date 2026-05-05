@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
-const PATH_DB = './db/tipos_roupa.json';
+const PATH_DB = './src/db/tipos_roupa.json';
 
 var tiposRoupaDB = loadTiposRoupa();
 
@@ -33,13 +33,12 @@ var tiposRoupaDB = loadTiposRoupa();
 /**
  * @swagger
  * tags:
- *   name: Tipos de Roupa
+ *   name: Tipos de Roupa - Gabriel Figueredo
  *   description: Gerenciamento das categorias de roupas da lavanderia
  */
 
 function loadTiposRoupa() {
   try {
-    if (!fs.existsSync(PATH_DB)) return [];
     return JSON.parse(fs.readFileSync(PATH_DB, 'utf8'));
   } catch (error) {
     console.error('Erro ao carregar tipos de roupa:', error);
@@ -56,7 +55,7 @@ function saveTiposRoupa() {
  * /tipos-roupa:
  *   get:
  *     summary: Retorna todos os tipos de roupa
- *     tags: [Tipos de Roupa]
+ *     tags: [Tipos de Roupa - Gabriel Figueredo]
  *     responses:
  *       200:
  *         description: Lista de todos os tipos cadastrados
@@ -77,7 +76,7 @@ router.get('/', (req, res) => {
  * /tipos-roupa/{id}:
  *   get:
  *     summary: Retorna um tipo de roupa pelo ID ou Nome
- *     tags: [Tipos de Roupa]
+ *     tags: [Tipos de Roupa - Gabriel Figueredo]
  *     parameters:
  *       - in: path
  *         name: id
@@ -94,10 +93,8 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   tiposRoupaDB = loadTiposRoupa();
   const busca = req.params.id.toLowerCase();
-  
-  const resultado = tiposRoupaDB.find((t) => 
-    t.id === req.params.id || t.nome.toLowerCase().includes(busca)
-  );
+
+  const resultado = tiposRoupaDB.find((t) => t.id === req.params.id || t.nome.toLowerCase().includes(busca));
 
   if (!resultado) {
     return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
@@ -110,7 +107,7 @@ router.get('/:id', (req, res) => {
  * /tipos-roupa:
  *   post:
  *     summary: Cria um novo tipo de roupa
- *     tags: [Tipos de Roupa]
+ *     tags: [Tipos de Roupa - Gabriel Figueredo]
  *     requestBody:
  *       required: true
  *       content:
@@ -124,13 +121,13 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   tiposRoupaDB = loadTiposRoupa();
   const { nome, descricao } = req.body;
-  
-  const novoTipo = { 
-    id: uuidv4(), 
-    nome, 
-    descricao 
+
+  const novoTipo = {
+    id: uuidv4(),
+    nome,
+    descricao,
   };
-  
+
   tiposRoupaDB.push(novoTipo);
   saveTiposRoupa();
   return res.status(201).json(novoTipo);
@@ -141,7 +138,7 @@ router.post('/', (req, res) => {
  * /tipos-roupa/{id}:
  *   put:
  *     summary: Atualiza um tipo de roupa pelo ID
- *     tags: [Tipos de Roupa]
+ *     tags: [Tipos de Roupa - Gabriel Figueredo]
  *     parameters:
  *       - in: path
  *         name: id
@@ -161,11 +158,11 @@ router.put('/:id', (req, res) => {
   tiposRoupaDB = loadTiposRoupa();
   const { nome, descricao } = req.body;
   const index = tiposRoupaDB.findIndex((t) => t.id === req.params.id);
-  
+
   if (index === -1) {
     return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
   }
-  
+
   tiposRoupaDB[index] = { ...tiposRoupaDB[index], nome, descricao };
   saveTiposRoupa();
   return res.json(tiposRoupaDB[index]);
@@ -176,7 +173,7 @@ router.put('/:id', (req, res) => {
  * /tipos-roupa/{id}:
  *   delete:
  *     summary: Remove um tipo de roupa pelo ID
- *     tags: [Tipos de Roupa]
+ *     tags: [Tipos de Roupa - Gabriel Figueredo]
  *     parameters:
  *       - in: path
  *         name: id
@@ -189,11 +186,11 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   tiposRoupaDB = loadTiposRoupa();
   const index = tiposRoupaDB.findIndex((t) => t.id === req.params.id);
-  
+
   if (index === -1) {
     return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
   }
-  
+
   tiposRoupaDB.splice(index, 1);
   saveTiposRoupa();
   return res.json({ message: 'Tipo de roupa removido com sucesso' });
