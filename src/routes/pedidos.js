@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-let pedidosDB = loadPedidos();
-
+const Pedido = require('../models/Pedido');
 /**
  * @swagger
  * components:
@@ -57,17 +53,7 @@ let pedidosDB = loadPedidos();
  *   description: Gerenciamento de pedidos
  */
 
-function loadPedidos() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/pedidos.json', 'utf8'));
-  } catch {
-    return [];
-  }
-}
-
-function savePedidos() {
-  fs.writeFileSync('./src/db/pedidos.json', JSON.stringify(pedidosDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -85,9 +71,13 @@ function savePedidos() {
  *               items:
  *                 $ref: '#/components/schemas/Pedido'
  */
-router.get('/', (req, res) => {
-  pedidosDB = loadPedidos();
-  res.json(pedidosDB);
+router.get('/', async (req, res) => {
+  try {
+    const pedidos = await Pedido.find().populate('cliente_id usuario_id');
+    res.json(pedidos);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao buscar pedidos', error: error.message });
+  }
 });
 
 /**
@@ -114,15 +104,16 @@ router.get('/', (req, res) => {
  *       404:
  *         description: Pedido não encontrado
  */
-router.get('/:id', (req, res) => {
-  pedidosDB = loadPedidos();
-  const pedido = pedidosDB.find(p => p.id === req.params.id);
-
-  if (!pedido) {
-    return res.status(404).json({ message: 'Pedido não encontrado!' });
+router.get('/:id', async (req, res) => {
+  try {
+    const pedido = await Pedido.findById(req.params.id).populate('cliente_id usuario_id');
+    if (!pedido) {
+      return res.status(404).json({ message: 'Pedido não encontrado!' });
+    }
+    res.json(pedido);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao buscar pedido', error: error.message });
   }
-
-  res.json(pedido);
 });
 
 /**
@@ -141,18 +132,14 @@ router.get('/:id', (req, res) => {
  *       201:
  *         description: Pedido criado
  */
-router.post('/', (req, res) => {
-  pedidosDB = loadPedidos();
-
-  const novoPedido = {
-    id: uuidv4(),
-    ...req.body
-  };
-
-  pedidosDB.push(novoPedido);
-  savePedidos();
-
-  res.status(201).json(novoPedido);
+router.post('/', async (req, res) => {
+  try {
+    const novoPedido = new Pedido(req.body);
+    await novoPedido.save();
+    res.status(201).json(novoPedido);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao criar pedido', error: error.message });
+  }
 });
 
 /**
@@ -181,22 +168,21 @@ router.post('/', (req, res) => {
  *       404:
  *         description: Pedido não encontrado
  */
-router.put('/:id', (req, res) => {
-  pedidosDB = loadPedidos();
+router.put('/:id', async (req, res) => {
+  try {
+    const pedidoAtualizado = await Pedido.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
 
-  const index = pedidosDB.findIndex(p => p.id === req.params.id);
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido não encontrado!' });
+    if (!pedidoAtualizado) {
+      return res.status(404).json({ message: 'Pedido não encontrado!' });
+    }
+    res.json(pedidoAtualizado);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao atualizar pedido', error: error.message });
   }
-
-  pedidosDB[index] = {
-    ...pedidosDB[index],
-    ...req.body
-  };
-
-  savePedidos();
-  res.json(pedidosDB[index]);
 });
 
 /**
@@ -219,19 +205,17 @@ router.put('/:id', (req, res) => {
  *       404:
  *         description: Pedido não encontrado
  */
-router.delete('/:id', (req, res) => {
-  pedidosDB = loadPedidos();
+router.delete('/:id', async (req, res) => {
+  try {
+    const pedidoRemovido = await Pedido.findByIdAndDelete(req.params.id);
 
-  const index = pedidosDB.findIndex(p => p.id === req.params.id);
-
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido não encontrado!' });
+    if (!pedidoRemovido) {
+      return res.status(404).json({ message: 'Pedido não encontrado!' });
+    }
+    res.json({ message: 'Pedido removido com sucesso!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erro ao remover pedido', error: error.message });
   }
-
-  pedidosDB.splice(index, 1);
-  savePedidos();
-
-  res.json({ message: 'Pedido removido com sucesso!' });
 });
 
 module.exports = router;

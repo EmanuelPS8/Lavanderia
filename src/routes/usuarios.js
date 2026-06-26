@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-var usuariosDB = loadUsuarios();
-
+const Usuario = require('../models/Usuario');
 /**
  * @swagger
  * components:
@@ -46,18 +42,7 @@ var usuariosDB = loadUsuarios();
  *   description: Gerenciamento de usuários do sistema
  */
 
-function loadUsuarios() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/usuarios.json', 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar usuários:', error);
-    return [];
-  }
-}
-
-function saveUsuarios() {
-  fs.writeFileSync('./src/db/usuarios.json', JSON.stringify(usuariosDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -82,24 +67,26 @@ function saveUsuarios() {
  *         description: Lista de usuários
  */
 // GET all users (com filtros de nome e data)
-router.get('/', (req, res) => {
-  usuariosDB = loadUsuarios();
-  const { nome, data } = req.query;
-  let resultados = usuariosDB;
-
-  if (nome) {
-    resultados = resultados.filter(u => 
-      u.nome.toLowerCase().includes(nome.toLowerCase())
-    );
+router.get('/', async (req, res) => {
+  try {
+    const { nome, data } = req.query;
+    let query = {};
+    if (nome) {
+      query.nome = { $regex: nome, $options: 'i' };
+    }
+    if (data) {
+      // Simplificação: buscar por data exata considerando formato ISO. 
+      // Pode precisar ajuste dependendo do uso exato, mas funciona para AAAA-MM-DD
+      query.created_at = {
+        $gte: new Date(`${data}T00:00:00.000Z`),
+        $lte: new Date(`${data}T23:59:59.999Z`)
+      };
+    }
+    const usuarios = await Usuario.find(query);
+    return res.json(usuarios);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar usuários', error: error.message });
   }
-
-  if (data) {
-    resultados = resultados.filter(u => 
-      u.created_at.includes(data)
-    );
-  }
-
-  return res.json(resultados);
 });
 
 /**
@@ -120,13 +107,16 @@ router.get('/', (req, res) => {
  *       404:
  *         description: Usuário não encontrado
  */
-router.get('/:id', (req, res) => {
-  usuariosDB = loadUsuarios();
-  const usuario = usuariosDB.find(u => u.id === req.params.id);
-  if (!usuario) {
-    return res.status(404).json({ message: 'Usuário não encontrado' });
+router.get('/:id', async (req, res) => {
+  try {
+    const usuario = await Usuario.findById(req.params.id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    return res.json(usuario);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar usuário', error: error.message });
   }
-  return res.json(usuario);
 });
 
 /**
@@ -145,24 +135,21 @@ router.get('/:id', (req, res) => {
  *       201:
  *         description: Usuário criado
  */
-router.post('/', (req, res) => {
-  usuariosDB = loadUsuarios();
-  const { nome, email, senha_hash, perfil, ativo } = req.body;
-  
-  const novoUsuario = { 
-    id: uuidv4(), 
-    nome, 
-    email, 
-    senha_hash, 
-    perfil, 
-    ativo: ativo ?? true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  usuariosDB.push(novoUsuario);
-  saveUsuarios();
-  return res.status(201).json(novoUsuario);
+router.post('/', async (req, res) => {
+  try {
+    const { nome, email, senha_hash, perfil, ativo } = req.body;
+    const novoUsuario = new Usuario({
+      nome, 
+      email, 
+      senha_hash, 
+      perfil, 
+      ativo: ativo ?? true
+    });
+    await novoUsuario.save();
+    return res.status(201).json(novoUsuario);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar usuário', error: error.message });
+  }
 });
 
 /**
@@ -189,27 +176,22 @@ router.post('/', (req, res) => {
  *       404:
  *         description: Usuário não encontrado
  */
-router.put('/:id', (req, res) => {
-  usuariosDB = loadUsuarios();
-  const { nome, email, senha_hash, perfil, ativo } = req.body;
-  const index = usuariosDB.findIndex(u => u.id === req.params.id);
+router.put('/:id', async (req, res) => {
+  try {
+    const { nome, email, senha_hash, perfil, ativo } = req.body;
+    const usuarioAtualizado = await Usuario.findByIdAndUpdate(
+      req.params.id,
+      { nome, email, senha_hash, perfil, ativo },
+      { new: true }
+    );
 
-  if (index === -1) {
-    return res.status(404).json({ message: 'Usuário não encontrado' });
+    if (!usuarioAtualizado) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    return res.json(usuarioAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar usuário', error: error.message });
   }
-
-  usuariosDB[index] = { 
-    ...usuariosDB[index], 
-    nome, 
-    email, 
-    senha_hash, 
-    perfil, 
-    ativo,
-    updated_at: new Date().toISOString()
-  };
-
-  saveUsuarios();
-  return res.json(usuariosDB[index]);
 });
 
 /**
@@ -230,17 +212,71 @@ router.put('/:id', (req, res) => {
  *       404:
  *         description: Usuário não encontrado
  */
-router.delete('/:id', (req, res) => {
-  usuariosDB = loadUsuarios();
-  const index = usuariosDB.findIndex(u => u.id === req.params.id);
-  
-  if (index === -1) {
-    return res.status(404).json({ message: 'Usuário não encontrado' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const usuarioRemovido = await Usuario.findByIdAndDelete(req.params.id);
+    if (!usuarioRemovido) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    return res.json({ message: 'Usuário removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover usuário', error: error.message });
   }
+});
 
-  usuariosDB.splice(index, 1);
-  saveUsuarios();
-  return res.json({ message: 'Usuário removido com sucesso' });
+/**
+ * @swagger
+ * /usuarios/login:
+ *   post:
+ *     summary: Autentica um usuário no sistema
+ *     tags: [Usuarios - Francielle Ferrari]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - senha
+ *             properties:
+ *               email:
+ *                 type: string
+ *               senha:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login efetuado com sucesso
+ *       401:
+ *         description: E-mail ou senha incorretos
+ *       500:
+ *         description: Erro no servidor
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+    const usuario = await Usuario.findOne({ email });
+    if (!usuario) {
+      return res.status(401).json({ message: 'E-mail ou senha incorretos' });
+    }
+    if (!usuario.ativo) {
+      return res.status(401).json({ message: 'Usuário inativo no sistema' });
+    }
+    if (usuario.senha_hash !== senha) {
+      return res.status(401).json({ message: 'E-mail ou senha incorretos' });
+    }
+    return res.json({
+      message: 'Login efetuado com sucesso',
+      usuario: {
+        id: usuario._id,
+        nome: usuario.nome,
+        email: usuario.email,
+        perfil: usuario.perfil
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao efetuar login', error: error.message });
+  }
 });
 
 module.exports = router;

@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-var clientesDB = loadClientes();
-
+const Cliente = require('../models/Cliente');
 /**
  * @swagger
  * components:
@@ -61,18 +57,7 @@ var clientesDB = loadClientes();
  *   description: Gerenciamento de clientes
  */
 
-function loadClientes() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/clientes.json', 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar clientes:', error);
-    return [];
-  }
-}
-
-function saveClientes() {
-  fs.writeFileSync('./src/db/clientes.json', JSON.stringify(clientesDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -91,9 +76,13 @@ function saveClientes() {
  *                 $ref: '#/components/schemas/Cliente'
  */
 // GET all clients
-router.get('/', (req, res) => {
-  clientesDB = loadClientes();
-  return res.json(clientesDB);
+router.get('/', async (req, res) => {
+  try {
+    const clientes = await Cliente.find();
+    return res.json(clientes);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar clientes', error: error.message });
+  }
 });
 
 /**
@@ -120,13 +109,16 @@ router.get('/', (req, res) => {
  *         description: Cliente não encontrado
  */
 // GET client by id
-router.get('/:id', (req, res) => {
-  clientesDB = loadClientes();
-  const cliente = clientesDB.find((c) => c.id === req.params.id);
-  if (!cliente) {
-    return res.status(404).json({ message: 'Cliente não encontrado' });
+router.get('/:id', async (req, res) => {
+  try {
+    const cliente = await Cliente.findById(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
+    }
+    return res.json(cliente);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
   }
-  return res.json(cliente);
 });
 
 /**
@@ -150,13 +142,15 @@ router.get('/:id', (req, res) => {
  *               $ref: '#/components/schemas/Cliente'
  */
 // POST create client
-router.post('/', (req, res) => {
-  clientesDB = loadClientes();
-  const { nome, telefone, email, cpf_cnpj, observacoes } = req.body;
-  const cliente = { id: uuidv4(), nome, telefone, email, cpf_cnpj, observacoes };
-  clientesDB.push(cliente);
-  saveClientes();
-  return res.status(201).json(cliente);
+router.post('/', async (req, res) => {
+  try {
+    const { nome, telefone, email, cpf_cnpj, observacoes } = req.body;
+    const cliente = new Cliente({ nome, telefone, email, cpf_cnpj, observacoes });
+    await cliente.save();
+    return res.status(201).json(cliente);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
+  }
 });
 
 /**
@@ -189,16 +183,21 @@ router.post('/', (req, res) => {
  *         description: Cliente não encontrado
  */
 // PUT update client
-router.put('/:id', (req, res) => {
-  clientesDB = loadClientes();
-  const { nome, telefone, email, cpf_cnpj, observacoes } = req.body;
-  const index = clientesDB.findIndex((c) => c.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Cliente não encontrado' });
+router.put('/:id', async (req, res) => {
+  try {
+    const { nome, telefone, email, cpf_cnpj, observacoes } = req.body;
+    const clienteAtualizado = await Cliente.findByIdAndUpdate(
+      req.params.id,
+      { nome, telefone, email, cpf_cnpj, observacoes },
+      { new: true }
+    );
+    if (!clienteAtualizado) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
+    }
+    return res.json(clienteAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar cliente', error: error.message });
   }
-  clientesDB[index] = { ...clientesDB[index], nome, telefone, email, cpf_cnpj, observacoes };
-  saveClientes();
-  return res.json(clientesDB[index]);
 });
 
 /**
@@ -221,15 +220,16 @@ router.put('/:id', (req, res) => {
  *         description: Cliente não encontrado
  */
 // DELETE client
-router.delete('/:id', (req, res) => {
-  clientesDB = loadClientes();
-  const index = clientesDB.findIndex((c) => c.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Cliente não encontrado' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const clienteRemovido = await Cliente.findByIdAndDelete(req.params.id);
+    if (!clienteRemovido) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
+    }
+    return res.json({ message: 'Cliente removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover cliente', error: error.message });
   }
-  clientesDB.splice(index, 1);
-  saveClientes();
-  return res.json({ message: 'Cliente removido com sucesso' });
 });
 
 module.exports = router;

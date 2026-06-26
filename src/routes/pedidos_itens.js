@@ -1,22 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-var pedidosItensDB = loadPedidosItens();
-
-function loadPedidosItens() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/pedidos_itens.json', 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar pedidos itens:', error);
-    return [];
-  }
-}
-
-function savePedidosItens() {
-  fs.writeFileSync('./src/db/pedidos_itens.json', JSON.stringify(pedidosItensDB, null, 2));
-}
+const PedidoItem = require('../models/PedidoItem');
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -87,9 +72,13 @@ function savePedidosItens() {
  *                 $ref: '#/components/schemas/PedidoItens'
  */
 //get
-router.get('/', (req, res) => {
-  pedidosItensDB = loadPedidosItens();
-  return res.json(pedidosItensDB);
+router.get('/', async (req, res) => {
+  try {
+    const itens = await PedidoItem.find().populate('pedido_id tipo_roupa_id');
+    return res.json(itens);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar itens do pedido', error: error.message });
+  }
 });
 
 /**
@@ -116,13 +105,16 @@ router.get('/', (req, res) => {
  *         description: Pedido item não encontrado
  */
 //get by id
-router.get('/:id', (req, res) => {
-  pedidosItensDB = loadPedidosItens();
-  const pedidoItem = pedidosItensDB.find((p) => p.id === req.params.id);
-  if (!pedidoItem) {
-    return res.status(404).json({ message: 'Pedido item não encontrado' });
+router.get('/:id', async (req, res) => {
+  try {
+    const pedidoItem = await PedidoItem.findById(req.params.id).populate('pedido_id tipo_roupa_id');
+    if (!pedidoItem) {
+      return res.status(404).json({ message: 'Pedido item não encontrado' });
+    }
+    return res.json(pedidoItem);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar item do pedido', error: error.message });
   }
-  return res.json(pedidoItem);
 });
 
 /**
@@ -146,13 +138,15 @@ router.get('/:id', (req, res) => {
  *               $ref: '#/components/schemas/PedidoItens'
  */
 //post
-router.post('/', (req, res) => {
-  pedidosItensDB = loadPedidosItens();
-  const { pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total } = req.body;
-  const pedidoItem = { id: uuidv4(), pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total };
-  pedidosItensDB.push(pedidoItem);
-  savePedidosItens();
-  return res.status(201).json(pedidoItem);
+router.post('/', async (req, res) => {
+  try {
+    const { pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total } = req.body;
+    const pedidoItem = new PedidoItem({ pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total });
+    await pedidoItem.save();
+    return res.status(201).json(pedidoItem);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar item do pedido', error: error.message });
+  }
 });
 
 /**
@@ -185,16 +179,21 @@ router.post('/', (req, res) => {
  *         description: Pedido item não encontrado
  */
 //put
-router.put('/:id', (req, res) => {
-  pedidosItensDB = loadPedidosItens();
-  const { pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total } = req.body;
-  const index = pedidosItensDB.findIndex((p) => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido item não encontrado' });
+router.put('/:id', async (req, res) => {
+  try {
+    const { pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total } = req.body;
+    const itemAtualizado = await PedidoItem.findByIdAndUpdate(
+      req.params.id,
+      { pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total },
+      { new: true }
+    );
+    if (!itemAtualizado) {
+      return res.status(404).json({ message: 'Pedido item não encontrado' });
+    }
+    return res.json(itemAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar item do pedido', error: error.message });
   }
-  pedidosItensDB[index] = { ...pedidosItensDB[index], pedido_id, tipo_roupa_id, quantidade, descricao, status, valor_total };
-  savePedidosItens();
-  return res.json(pedidosItensDB[index]);
 });
 
 /**
@@ -217,15 +216,16 @@ router.put('/:id', (req, res) => {
  *         description: Pedido item não encontrado
  */
 //delete
-router.delete('/:id', (req, res) => {
-  pedidosItensDB = loadPedidosItens();
-  const index = pedidosItensDB.findIndex((p) => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido item não encontrado' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const itemRemovido = await PedidoItem.findByIdAndDelete(req.params.id);
+    if (!itemRemovido) {
+      return res.status(404).json({ message: 'Pedido item não encontrado' });
+    }
+    return res.json({ message: 'Pedido item removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover item do pedido', error: error.message });
   }
-  pedidosItensDB.splice(index, 1);
-  savePedidosItens();
-  return res.json({ message: 'Pedido item removido com sucesso' });
 });
 
 module.exports = router;

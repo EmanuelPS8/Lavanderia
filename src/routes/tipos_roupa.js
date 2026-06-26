@@ -1,11 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const PATH_DB = './src/db/tipos_roupa.json';
-
-var tiposRoupaDB = loadTiposRoupa();
-
+const TipoRoupa = require('../models/TipoRoupa');
 /**
  * @swagger
  * components:
@@ -37,18 +32,7 @@ var tiposRoupaDB = loadTiposRoupa();
  *   description: Gerenciamento das categorias de roupas da lavanderia
  */
 
-function loadTiposRoupa() {
-  try {
-    return JSON.parse(fs.readFileSync(PATH_DB, 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar tipos de roupa:', error);
-    return [];
-  }
-}
-
-function saveTiposRoupa() {
-  fs.writeFileSync(PATH_DB, JSON.stringify(tiposRoupaDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -66,9 +50,13 @@ function saveTiposRoupa() {
  *               items:
  *                 $ref: '#/components/schemas/TipoRoupa'
  */
-router.get('/', (req, res) => {
-  tiposRoupaDB = loadTiposRoupa();
-  return res.json(tiposRoupaDB);
+router.get('/', async (req, res) => {
+  try {
+    const tipos = await TipoRoupa.find();
+    return res.json(tipos);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar tipos de roupa', error: error.message });
+  }
 });
 
 /**
@@ -90,16 +78,25 @@ router.get('/', (req, res) => {
  *       404:
  *         description: Tipo de roupa não encontrado
  */
-router.get('/:id', (req, res) => {
-  tiposRoupaDB = loadTiposRoupa();
-  const busca = req.params.id.toLowerCase();
+router.get('/:id', async (req, res) => {
+  try {
+    const busca = req.params.id;
+    // Tenta buscar por ID (se for ObjectId válido) ou por nome
+    let query = { $or: [{ nome: { $regex: busca, $options: 'i' } }] };
+    if (busca.match(/^[0-9a-fA-F]{24}$/)) {
+      query.$or.push({ _id: busca });
+    }
 
-  const resultado = tiposRoupaDB.find((t) => t.id === req.params.id || t.nome.toLowerCase().includes(busca));
+    const resultados = await TipoRoupa.find(query);
 
-  if (!resultado) {
-    return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    if (resultados.length === 0) {
+      return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    }
+    // Retorna o primeiro ou a lista, para manter compatibilidade retorna o primeiro se for por id, mas a logica original retornava 1 objeto
+    return res.json(resultados[0]);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar tipo de roupa', error: error.message });
   }
-  return res.json(resultado);
 });
 
 /**
@@ -118,19 +115,15 @@ router.get('/:id', (req, res) => {
  *       201:
  *         description: Tipo de roupa criado com sucesso
  */
-router.post('/', (req, res) => {
-  tiposRoupaDB = loadTiposRoupa();
-  const { nome, descricao } = req.body;
-
-  const novoTipo = {
-    id: uuidv4(),
-    nome,
-    descricao,
-  };
-
-  tiposRoupaDB.push(novoTipo);
-  saveTiposRoupa();
-  return res.status(201).json(novoTipo);
+router.post('/', async (req, res) => {
+  try {
+    const { nome, descricao } = req.body;
+    const novoTipo = new TipoRoupa({ nome, descricao });
+    await novoTipo.save();
+    return res.status(201).json(novoTipo);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar tipo de roupa', error: error.message });
+  }
 });
 
 /**
@@ -154,18 +147,22 @@ router.post('/', (req, res) => {
  *       200:
  *         description: Atualizado com sucesso
  */
-router.put('/:id', (req, res) => {
-  tiposRoupaDB = loadTiposRoupa();
-  const { nome, descricao } = req.body;
-  const index = tiposRoupaDB.findIndex((t) => t.id === req.params.id);
+router.put('/:id', async (req, res) => {
+  try {
+    const { nome, descricao } = req.body;
+    const tipoAtualizado = await TipoRoupa.findByIdAndUpdate(
+      req.params.id,
+      { nome, descricao },
+      { new: true }
+    );
 
-  if (index === -1) {
-    return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    if (!tipoAtualizado) {
+      return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    }
+    return res.json(tipoAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar tipo de roupa', error: error.message });
   }
-
-  tiposRoupaDB[index] = { ...tiposRoupaDB[index], nome, descricao };
-  saveTiposRoupa();
-  return res.json(tiposRoupaDB[index]);
 });
 
 /**
@@ -183,17 +180,17 @@ router.put('/:id', (req, res) => {
  *       200:
  *         description: Removido com sucesso
  */
-router.delete('/:id', (req, res) => {
-  tiposRoupaDB = loadTiposRoupa();
-  const index = tiposRoupaDB.findIndex((t) => t.id === req.params.id);
+router.delete('/:id', async (req, res) => {
+  try {
+    const tipoRemovido = await TipoRoupa.findByIdAndDelete(req.params.id);
 
-  if (index === -1) {
-    return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    if (!tipoRemovido) {
+      return res.status(404).json({ message: 'Tipo de roupa não encontrado' });
+    }
+    return res.json({ message: 'Tipo de roupa removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover tipo de roupa', error: error.message });
   }
-
-  tiposRoupaDB.splice(index, 1);
-  saveTiposRoupa();
-  return res.json({ message: 'Tipo de roupa removido com sucesso' });
 });
 
 module.exports = router;

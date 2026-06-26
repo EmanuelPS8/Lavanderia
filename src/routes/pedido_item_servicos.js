@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-var pedidoItemServicosDB = loadPedidoItemServicos();
-
+const PedidoItemServico = require('../models/PedidoItemServico');
 /**
  * @swagger
  * components:
@@ -53,18 +49,7 @@ var pedidoItemServicosDB = loadPedidoItemServicos();
  *   description: Gerenciamento de serviços dos itens de pedido
  */
 
-function loadPedidoItemServicos() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/pedido_item_servicos.json', 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar pedido item servicos:', error);
-    return [];
-  }
-}
-
-function savePedidoItemServicos() {
-  fs.writeFileSync('./src/db/pedido_item_servicos.json', JSON.stringify(pedidoItemServicosDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -83,9 +68,13 @@ function savePedidoItemServicos() {
  *                 $ref: '#/components/schemas/PedidoItemServico'
  */
 // GET all pedido item servicos
-router.get('/', (req, res) => {
-  pedidoItemServicosDB = loadPedidoItemServicos();
-  return res.json(pedidoItemServicosDB);
+router.get('/', async (req, res) => {
+  try {
+    const itens = await PedidoItemServico.find().populate('pedido_item_id servico_id');
+    return res.json(itens);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar pedido item servicos', error: error.message });
+  }
 });
 
 /**
@@ -112,13 +101,16 @@ router.get('/', (req, res) => {
  *         description: Pedido item servico não encontrado
  */
 // GET pedido item servico by id
-router.get('/:id', (req, res) => {
-  pedidoItemServicosDB = loadPedidoItemServicos();
-  const item = pedidoItemServicosDB.find((p) => p.id === req.params.id);
-  if (!item) {
-    return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+router.get('/:id', async (req, res) => {
+  try {
+    const item = await PedidoItemServico.findById(req.params.id).populate('pedido_item_id servico_id');
+    if (!item) {
+      return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+    }
+    return res.json(item);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar pedido item servico', error: error.message });
   }
-  return res.json(item);
 });
 
 /**
@@ -142,14 +134,16 @@ router.get('/:id', (req, res) => {
  *               $ref: '#/components/schemas/PedidoItemServico'
  */
 // POST create pedido item servico
-router.post('/', (req, res) => {
-  pedidoItemServicosDB = loadPedidoItemServicos();
-  const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
-  const valor_total = preco_unitario * quantidade;
-  const item = { id: uuidv4(), pedido_item_id, servico_id, preco_unitario, quantidade, valor_total };
-  pedidoItemServicosDB.push(item);
-  savePedidoItemServicos();
-  return res.status(201).json(item);
+router.post('/', async (req, res) => {
+  try {
+    const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
+    const valor_total = preco_unitario * quantidade;
+    const item = new PedidoItemServico({ pedido_item_id, servico_id, preco_unitario, quantidade, valor_total });
+    await item.save();
+    return res.status(201).json(item);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar pedido item servico', error: error.message });
+  }
 });
 
 /**
@@ -182,17 +176,22 @@ router.post('/', (req, res) => {
  *         description: Pedido item servico não encontrado
  */
 // PUT update pedido item servico
-router.put('/:id', (req, res) => {
-  pedidoItemServicosDB = loadPedidoItemServicos();
-  const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
-  const index = pedidoItemServicosDB.findIndex((p) => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+router.put('/:id', async (req, res) => {
+  try {
+    const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
+    const valor_total = preco_unitario * quantidade;
+    const itemAtualizado = await PedidoItemServico.findByIdAndUpdate(
+      req.params.id,
+      { pedido_item_id, servico_id, preco_unitario, quantidade, valor_total },
+      { new: true }
+    );
+    if (!itemAtualizado) {
+      return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+    }
+    return res.json(itemAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar pedido item servico', error: error.message });
   }
-  const valor_total = preco_unitario * quantidade;
-  pedidoItemServicosDB[index] = { ...pedidoItemServicosDB[index], pedido_item_id, servico_id, preco_unitario, quantidade, valor_total };
-  savePedidoItemServicos();
-  return res.json(pedidoItemServicosDB[index]);
 });
 
 /**
@@ -215,15 +214,16 @@ router.put('/:id', (req, res) => {
  *         description: Pedido item servico não encontrado
  */
 // DELETE pedido item servico
-router.delete('/:id', (req, res) => {
-  pedidoItemServicosDB = loadPedidoItemServicos();
-  const index = pedidoItemServicosDB.findIndex((p) => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const itemRemovido = await PedidoItemServico.findByIdAndDelete(req.params.id);
+    if (!itemRemovido) {
+      return res.status(404).json({ message: 'Pedido item servico não encontrado' });
+    }
+    return res.json({ message: 'Pedido item servico removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover pedido item servico', error: error.message });
   }
-  pedidoItemServicosDB.splice(index, 1);
-  savePedidoItemServicos();
-  return res.json({ message: 'Pedido item servico removido com sucesso' });
 });
 
 module.exports = router;

@@ -1,10 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-
-var servicosDB = loadServicos();
-
+const Servico = require('../models/Servico');
 /**
  * @swagger
  * components:
@@ -42,18 +38,7 @@ var servicosDB = loadServicos();
  *   description: Gerenciamento de serviços
  */
 
-function loadServicos() {
-  try {
-    return JSON.parse(fs.readFileSync('./src/db/servicos.json', 'utf8'));
-  } catch (error) {
-    console.error('Erro ao carregar servicos:', error);
-    return [];
-  }
-}
-
-function saveServicos() {
-  fs.writeFileSync('./src/db/servicos.json', JSON.stringify(servicosDB, null, 2));
-}
+// Removido fs.readFileSync e writeFileSync
 
 /**
  * @swagger
@@ -72,9 +57,13 @@ function saveServicos() {
  *                 $ref: '#/components/schemas/Servico'
  */
 //GET all services
-router.get('/', (req, res) => {
-  servicosDB = loadServicos();
-  return res.json(servicosDB);
+router.get('/', async (req, res) => {
+  try {
+    const servicos = await Servico.find();
+    return res.json(servicos);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar serviços', error: error.message });
+  }
 });
 
 /**
@@ -101,13 +90,16 @@ router.get('/', (req, res) => {
  *         description: Serviço não encontrado
  */
 //GET service by id
-router.get('/:id', (req, res) => {
-  servicosDB = loadServicos();
-  const servico = servicosDB.find((s) => s.id === req.params.id);
-  if (!servico) {
-    return res.status(404).json({ message: 'Serviço não encontrado' });
+router.get('/:id', async (req, res) => {
+  try {
+    const servico = await Servico.findById(req.params.id);
+    if (!servico) {
+      return res.status(404).json({ message: 'Serviço não encontrado' });
+    }
+    return res.json(servico);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao buscar serviço', error: error.message });
   }
-  return res.json(servico);
 });
 
 /**
@@ -131,13 +123,15 @@ router.get('/:id', (req, res) => {
  *               $ref: '#/components/schemas/Servico'
  */
 //POST create service
-router.post('/', (req, res) => {
-  servicosDB = loadServicos();
-  const { nome, preco, descricao } = req.body;
-  const servico = { id: uuidv4(), nome, preco, descricao };
-  servicosDB.push(servico);
-  saveServicos();
-  return res.status(201).json(servico);
+router.post('/', async (req, res) => {
+  try {
+    const { nome, preco, descricao, ativo } = req.body;
+    const servico = new Servico({ nome, preco, descricao, ativo });
+    await servico.save();
+    return res.status(201).json(servico);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao criar serviço', error: error.message });
+  }
 });
 
 /**
@@ -170,16 +164,21 @@ router.post('/', (req, res) => {
  *         description: Serviço não encontrado
  */
 //PUT update service
-router.put('/:id', (req, res) => {
-  servicosDB = loadServicos();
-  const { nome, preco, descricao } = req.body;
-  const index = servicosDB.findIndex((s) => s.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Serviço não encontrado' });
+router.put('/:id', async (req, res) => {
+  try {
+    const { nome, preco, descricao, ativo } = req.body;
+    const servicoAtualizado = await Servico.findByIdAndUpdate(
+      req.params.id,
+      { nome, preco, descricao, ativo },
+      { new: true }
+    );
+    if (!servicoAtualizado) {
+      return res.status(404).json({ message: 'Serviço não encontrado' });
+    }
+    return res.json(servicoAtualizado);
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao atualizar serviço', error: error.message });
   }
-  servicosDB[index] = { ...servicosDB[index], nome, preco, descricao };
-  saveServicos();
-  return res.json(servicosDB[index]);
 });
 
 /**
@@ -202,15 +201,16 @@ router.put('/:id', (req, res) => {
  *         description: Serviço não encontrado
  */
 //DELETE service
-router.delete('/:id', (req, res) => {
-  servicosDB = loadServicos();
-  const index = servicosDB.findIndex((s) => s.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Serviço não encontrado' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const servicoRemovido = await Servico.findByIdAndDelete(req.params.id);
+    if (!servicoRemovido) {
+      return res.status(404).json({ message: 'Serviço não encontrado' });
+    }
+    return res.json({ message: 'Serviço removido com sucesso' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erro ao remover serviço', error: error.message });
   }
-  servicosDB.splice(index, 1);
-  saveServicos();
-  return res.json({ message: 'Serviço removido com sucesso' });
 });
 
 module.exports = router;
