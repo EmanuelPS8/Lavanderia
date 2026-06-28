@@ -41,7 +41,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
+  const [clientErrors, setClientErrors] = useState({});
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
   // Navegação
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -50,8 +52,8 @@ export default function App() {
   const [servicos, setServicos] = useState([]);
   const [tiposRoupa, setTiposRoupa] = useState([]);
   const [pedidos, setPedidos] = useState([]);
-  const [usuarios, setUsuarios] = useState([]);
   const [pedidoItens, setPedidoItens] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [pedidoItemServicos, setPedidoItemServicos] = useState([]);
 
   // Estados dos Modais
@@ -62,11 +64,38 @@ export default function App() {
   const [detailData, setDetailData] = useState(null);
 
   // Estados dos Formulários de Cadastro
-  const [clientForm, setClientForm] = useState({ nome: '', email: '', telefone: '', cpf_cnpj: '', observacoes: '' });
-  const [serviceForm, setServiceForm] = useState({ nome: '', descricao: '', preco: '', ativo: true });
-  const [tipoRoupaForm, setTipoRoupaForm] = useState({ nome: '', descricao: '' });
-  const [userForm, setUserForm] = useState({ nome: '', email: '', senha_hash: '', perfil: 'operador', ativo: true });
-  const [pedidoForm, setPedidoForm] = useState({ cliente_id: '', status: 'pendente', data_prevista: '', valor_total: '0', observacoes: '' });
+  const [clientForm, setClientForm] = useState({
+    nome: '',
+    email: '',
+    telefone: '',
+    cpf_cnpj: '',
+    observacoes: '',
+  });
+  const [serviceForm, setServiceForm] = useState({
+    nome: '',
+    descricao: '',
+    preco: '',
+    ativo: true,
+  });
+  const [tipoRoupaForm, setTipoRoupaForm] = useState({
+    nome: '',
+    descricao: '',
+  });
+  const [userForm, setUserForm] = useState({
+    nome: '',
+    email: '',
+    senha_hash: '',
+    perfil: 'operador',
+    ativo: true,
+  });
+  const [pedidoForm, setPedidoForm] = useState({
+    cliente_id: '',
+    usuario_id: '',
+    status: 'pendente',
+    data_prevista: '',
+    valor_total: '0',
+    observacoes: '',
+  });
 
   // Estados dos Sub-itens do Pedido
   const [editingItemId, setEditingItemId] = useState(null);
@@ -86,7 +115,7 @@ export default function App() {
 
   useEffect(() => {
     if (tiposRoupa.length > 0 && !newItemForm.tipo_roupa_id) {
-      setNewItemForm(prev => ({ ...prev, tipo_roupa_id: tiposRoupa[0]._id }));
+      setNewItemForm((prev) => ({ ...prev, tipo_roupa_id: tiposRoupa[0]._id }));
     }
   }, [tiposRoupa]);
 
@@ -97,7 +126,6 @@ export default function App() {
     fetchData('usuarios', setUsuarios);
     fetchData('pedidos', setPedidos);
     fetchData('pedidos-itens', setPedidoItens);
-    fetchData('pedido-item-servicos', setPedidoItemServicos);
   };
 
   const fetchData = async (endpoint, setter) => {
@@ -109,6 +137,69 @@ export default function App() {
     }
   };
 
+  const [pedidoItemForm, setPedidoItemForm] = useState({
+    pedido_id: '',
+    tipo_roupa_id: '',
+    quantidade: 1,
+    descricao: '',
+    status: 'pendente',
+    valor_total: 0,
+  });
+
+  // Formatação automática CPF/CNPJ
+  const formatCpfCnpj = (value) => {
+    let digits = value.replace(/\D/g, '');
+
+    // Limita ao máximo de um CNPJ
+    digits = digits.slice(0, 14);
+
+    // CPF
+    if (digits.length <= 11) {
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return digits.replace(/^(\d{3})(\d+)/, '$1.$2');
+      if (digits.length <= 9) return digits.replace(/^(\d{3})(\d{3})(\d+)/, '$1.$2.$3');
+
+      return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    }
+
+    // CNPJ
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return digits.replace(/^(\d{2})(\d+)/, '$1.$2');
+    if (digits.length <= 8) return digits.replace(/^(\d{2})(\d{3})(\d+)/, '$1.$2.$3');
+    if (digits.length <= 12) return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d+)/, '$1.$2.$3/$4');
+
+    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  };
+
+  //Formatação CEP
+  const formatCEP = (value) => {
+    return value
+      .replace(/\D/g, '')
+      .slice(0, 8)
+      .replace(/(\d{5})(\d)/, '$1-$2');
+  };
+
+  //Formatação telefone
+  const formatPhone = (value) => {
+    return value
+      .replace(/\D/g, '')
+      .slice(0, 11)
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2');
+  };
+
+  //Formatação valores
+  const formatCurrency = (value) => {
+    const digits = value.replace(/\D/g, '');
+
+    const number = Number(digits || 0) / 100;
+
+    return number.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  };
+
   // Login
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -117,7 +208,10 @@ export default function App() {
     setLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}/usuarios/login`, { email: loginEmail, senha: loginPassword });
+      const res = await axios.post(`${API_URL}/usuarios/login`, {
+        email: loginEmail,
+        senha: loginPassword,
+      });
       setSuccess('Login efetuado com sucesso!');
       localStorage.setItem('admin_user', JSON.stringify(res.data.usuario));
       setTimeout(() => {
@@ -149,11 +243,43 @@ export default function App() {
     setIsFormModalOpen(true);
 
     // Resetar formulário correspondente
-    if (entity === 'clientes') setClientForm({ nome: '', email: '', telefone: '', cpf_cnpj: '', observacoes: '' });
-    if (entity === 'servicos') setServiceForm({ nome: '', descricao: '', preco: '', ativo: true });
+    if (entity === 'clientes')
+      setClientForm({
+        nome: '',
+        email: '',
+        telefone: '',
+        cpf_cnpj: '',
+        observacoes: '',
+      });
+    if (entity === 'servicos') ('', setServiceForm({ nome: '', descricao: '', preco: '', ativo: true }));
     if (entity === 'tiposRoupa') setTipoRoupaForm({ nome: '', descricao: '' });
-    if (entity === 'usuarios') setUserForm({ nome: '', email: '', senha_hash: '', perfil: 'operador', ativo: true });
-    if (entity === 'pedidos') setPedidoForm({ cliente_id: clientes[0]?._id || '', status: 'pendente', data_prevista: '', valor_total: '0', observacoes: '' });
+    if (entity === 'usuarios')
+      setUserForm({
+        nome: '',
+        email: '',
+        senha_hash: '',
+        perfil: 'operador',
+        ativo: true,
+      });
+    if (entity === 'pedidos')
+      setPedidoForm({
+        cliente_id: clientes[0]?._id || '',
+        usuario_id: usuarios[0]?._id || '',
+        status: 'pendente',
+        data_prevista: '',
+        valor_total: '0',
+        observacoes: '',
+      });
+    if (entity === 'pedidoItens') {
+      setPedidoItemForm({
+        pedido_id: pedidos[0]?._id || '',
+        tipo_roupa_id: tiposRoupa[0]?._id || '',
+        quantidade: 1,
+        descricao: '',
+        status: 'pendente',
+        valor_total: 0,
+      });
+    }
   };
 
   // Abertura de Formulário de Edição
@@ -175,7 +301,7 @@ export default function App() {
       setServiceForm({
         nome: item.nome || '',
         descricao: item.descricao || '',
-        preco: item.preco || '',
+        preco: formatCurrency(String(item.preco || 0)),
         ativo: item.ativo ?? true,
       });
     }
@@ -198,9 +324,19 @@ export default function App() {
       setPedidoForm({
         cliente_id: item.cliente_id?._id || item.cliente_id || '',
         status: item.status || 'pendente',
-        data_prevista: item.data_prevista ? item.data_prevista.split('T')[0] : '',
-        valor_total: item.valor_total || '0',
+        data_prevista: item.data_prevista ? new Date(item.data_prevista).toISOString().split('T')[0] : '',
+        valor_total: formatCurrency(String(item.valor_total || 0)),
         observacoes: item.observacoes || '',
+      });
+    }
+    if (entity === 'pedidoItens') {
+      setPedidoItemForm({
+        pedido_id: item.pedido_id?._id || item.pedido_id,
+        tipo_roupa_id: item.tipo_roupa_id?._id || item.tipo_roupa_id,
+        quantidade: item.quantidade,
+        descricao: item.descricao,
+        status: item.status,
+        valor_total: item.valor_total,
       });
     }
   };
@@ -222,6 +358,7 @@ export default function App() {
     if (entity === 'tiposRoupa') endpoint = 'tipos-roupa';
     if (entity === 'usuarios') endpoint = 'usuarios';
     if (entity === 'pedidos') endpoint = 'pedidos';
+    if (entity === 'pedidoItens') endpoint = 'pedidos-itens';
 
     try {
       await axios.delete(`${API_URL}/${endpoint}/${id}`);
@@ -242,7 +379,10 @@ export default function App() {
       bodyData = clientForm;
     } else if (activeEntity === 'servicos') {
       endpoint = 'servicos';
-      bodyData = { ...serviceForm, preco: Number(serviceForm.preco) };
+      bodyData = {
+        ...serviceForm,
+        preco: Number(serviceForm.preco.replace(/\s/g, '').replace('R$', '').replace(/\./g, '').replace(',', '.')),
+      };
     } else if (activeEntity === 'tiposRoupa') {
       endpoint = 'tipos-roupa';
       bodyData = tipoRoupaForm;
@@ -253,8 +393,14 @@ export default function App() {
       endpoint = 'pedidos';
       bodyData = {
         ...pedidoForm,
-        usuario_id: user.id, // O usuário logado é o autor do pedido
-        valor_total: Number(pedidoForm.valor_total),
+        valor_total: Number(pedidoForm.valor_total.replace(/\s/g, '').replace('R$', '').replace(/\./g, '').replace(',', '.')),
+      };
+    } else if (activeEntity === 'pedidoItens') {
+      endpoint = 'pedidos-itens';
+      bodyData = {
+        ...pedidoItemForm,
+        quantidade: Number(pedidoItemForm.quantidade),
+        valor_total: Number(pedidoItemForm.valor_total),
       };
     }
 
@@ -269,6 +415,20 @@ export default function App() {
       loadAllData();
     } catch (err) {
       alert(err.response?.data?.message || 'Erro ao salvar o registro.');
+    }
+    if (activeEntity === 'clientes') {
+      const errors = {
+        nome: !clientForm.nome.trim(),
+        email: !clientForm.email.trim(),
+        telefone: !clientForm.telefone.trim(),
+        cpf_cnpj: !clientForm.cpf_cnpj.trim(),
+      };
+
+      setClientErrors(errors);
+
+      if (Object.values(errors).some(Boolean)) {
+        return;
+      }
     }
   };
 
@@ -286,14 +446,14 @@ export default function App() {
         quantidade: Number(newItemForm.quantidade || 1),
         descricao: newItemForm.descricao,
         status: newItemForm.status,
-        valor_total: Number(newItemForm.valor_total || 0)
+        valor_total: Number(newItemForm.valor_total || 0),
       });
       setNewItemForm({
         tipo_roupa_id: tiposRoupa[0]?._id || '',
         quantidade: 1,
         descricao: '',
         status: 'pendente',
-        valor_total: 0
+        valor_total: 0,
       });
       loadAllData();
     } catch (err) {
@@ -308,7 +468,7 @@ export default function App() {
       quantidade: item.quantidade || 1,
       descricao: item.descricao || '',
       status: item.status || 'pendente',
-      valor_total: item.valor_total || 0
+      valor_total: item.valor_total || 0,
     });
   };
 
@@ -320,7 +480,7 @@ export default function App() {
         quantidade: Number(editItemForm.quantidade || 1),
         descricao: editItemForm.descricao,
         status: editItemForm.status,
-        valor_total: Number(editItemForm.valor_total || 0)
+        valor_total: Number(editItemForm.valor_total || 0),
       });
       setEditingItemId(null);
       loadAllData();
@@ -354,7 +514,7 @@ export default function App() {
       }
     }
 
-    const selectedService = servicos.find(s => s._id === servicoId);
+    const selectedService = servicos.find((s) => s._id === servicoId);
     if (!selectedService) return;
 
     try {
@@ -362,11 +522,11 @@ export default function App() {
         pedido_item_id: itemId,
         servico_id: servicoId,
         preco_unitario: selectedService.preco,
-        quantidade: quant
+        quantidade: quant,
       });
       setNewServiceForm({
         ...newServiceForm,
-        [itemId]: { servico_id: servicos[0]?._id || '', quantidade: 1 }
+        [itemId]: { servico_id: servicos[0]?._id || '', quantidade: 1 },
       });
       loadAllData();
     } catch (err) {
@@ -610,6 +770,16 @@ export default function App() {
               Pedidos
             </button>
             <button
+              className={`admin-menu-item ${activeTab === 'pedidoItens' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('pedidoItens');
+                setSearchTerm('');
+              }}
+            >
+              <ShoppingBag size={18} />
+              Itens do Pedido
+            </button>
+            <button
               className={`admin-menu-item ${activeTab === 'usuarios' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('usuarios');
@@ -645,14 +815,22 @@ export default function App() {
               {activeTab === 'servicos' && 'Gestão de Serviços'}
               {activeTab === 'tiposRoupa' && 'Tipos de Roupas'}
               {activeTab === 'pedidos' && 'Pedidos de Lavanderia'}
+              {activeTab === 'pedidoItens' && 'Itens do Pedido'}
               {activeTab === 'usuarios' && 'Gestão de Usuários'}
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '13px', margin: '4px 0 0 0' }}>
+            <p
+              style={{
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                margin: '4px 0 0 0',
+              }}
+            >
               {activeTab === 'dashboard' && 'Visão geral do sistema BOFEGATU.'}
               {activeTab === 'clientes' && 'Cadastro, edição e remoção de clientes cadastrados.'}
               {activeTab === 'servicos' && 'Tipos de lavagens, secagens e serviços adicionais.'}
               {activeTab === 'tiposRoupa' && 'Roupas aceitas no sistema e suas descrições.'}
               {activeTab === 'pedidos' && 'Gerenciamento de tickets de lavanderia.'}
+              {activeTab === 'pedidoItens' && 'Gerenciamento dos itens pertencentes aos pedidos.'}
               {activeTab === 'usuarios' && 'Controle de funcionários com acesso ao sistema.'}
             </p>
           </div>
@@ -734,12 +912,13 @@ export default function App() {
                           <td>{pedido.cliente_id?.nome || 'Desconhecido'}</td>
                           <td>
                             <span
-                              className={`badge ${pedido.status === 'finalizado' || pedido.status === 'entregue'
+                              className={`badge ${
+                                pedido.status === 'finalizado' || pedido.status === 'entregue'
                                   ? 'badge-success'
                                   : pedido.status === 'em andamento'
                                     ? 'badge-info'
                                     : 'badge-warning'
-                                }`}
+                              }`}
                             >
                               {pedido.status}
                             </span>
@@ -750,7 +929,13 @@ export default function App() {
                       ))}
                       {pedidos.length === 0 && (
                         <tr>
-                          <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td
+                            colSpan="5"
+                            style={{
+                              textAlign: 'center',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
                             Nenhum pedido registrado no sistema.
                           </td>
                         </tr>
@@ -770,7 +955,7 @@ export default function App() {
                   <Search size={16} className="search-icon" />
                   <input
                     type="text"
-                    placeholder="Pesquisar por nome..."
+                    placeholder="Pesquisar por ID, nome ou CPF/CNPJ..."
                     className="search-input"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -781,22 +966,36 @@ export default function App() {
                 <table className="crud-table">
                   <thead>
                     <tr>
+                      <th>ID</th>
                       <th>Nome</th>
                       <th>E-mail</th>
                       <th>Telefone</th>
                       <th>CPF/CNPJ</th>
+                      <th>Observações</th>
                       <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {clientes
-                      .filter((c) => c.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter((c) => {
+                        const busca = searchTerm.toLowerCase();
+                        return c.nome?.toLowerCase().includes(busca) || c._id?.toLowerCase().includes(busca) || c.cpf_cnpj?.toLowerCase().includes(busca);
+                        const entrada = new Date(p.data_entrada);
+
+                        const passouData = (!dataInicio || entrada >= new Date(dataInicio)) && (!dataFim || entrada <= new Date(dataFim));
+
+                        return passouTexto && passouData;
+                      })
                       .map((cliente, index) => (
                         <tr key={cliente._id || index}>
+                          <td>{cliente._id.slice(-6).toUpperCase()}</td>
                           <td>{cliente.nome}</td>
-                          <td>{cliente.email || 'Não informado'}</td>
-                          <td>{cliente.telefone || 'Não informado'}</td>
-                          <td>{cliente.cpf_cnpj || 'Não informado'}</td>
+                          <td>{cliente.email || '-'}</td>
+                          <td>{cliente.telefone || '-'}</td>
+                          <td>{cliente.cpf_cnpj || '-'}</td>
+                          <td>
+                            {cliente.observacoes ? (cliente.observacoes.length > 30 ? cliente.observacoes.substring(0, 30) + '...' : cliente.observacoes) : '-'}
+                          </td>
                           <td className="actions-cell">
                             <button className="btn-icon" onClick={() => openDetail('clientes', cliente)} title="Ver Detalhes">
                               <Info size={14} />
@@ -812,7 +1011,14 @@ export default function App() {
                       ))}
                     {clientes.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <td
+                          colSpan="5"
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           Nenhum cliente cadastrado.
                         </td>
                       </tr>
@@ -842,6 +1048,7 @@ export default function App() {
                 <table className="crud-table">
                   <thead>
                     <tr>
+                      <th>ID</th>
                       <th>Nome</th>
                       <th>Preço</th>
                       <th>Descrição</th>
@@ -851,16 +1058,23 @@ export default function App() {
                   </thead>
                   <tbody>
                     {servicos
-                      .filter((s) => s.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter((s) => {
+                        const busca = searchTerm.toLowerCase();
+                        return s.nome?.toLowerCase().includes(busca) || s._id?.toLowerCase().includes(busca) || s._id?.slice(-6).toLowerCase().includes(busca);
+                      })
                       .map((servico, index) => (
                         <tr key={servico._id || index}>
+                          <td>{servico._id.slice(-6).toUpperCase()}</td>
                           <td>{servico.nome}</td>
                           <td>R$ {(servico.preco || 0).toFixed(2)}</td>
-                          <td>{servico.descricao || 'Sem descrição'}</td>
+                          <td>{servico.descricao ? (servico.descricao.length > 30 ? servico.descricao.substring(0, 30) + '...' : servico.descricao) : '-'}</td>
                           <td>
                             <span className={`badge ${servico.ativo ? 'badge-success' : 'badge-danger'}`}>{servico.ativo ? 'Ativo' : 'Inativo'}</span>
                           </td>
                           <td className="actions-cell">
+                            <button className="btn-icon" onClick={() => openDetail('servicos', servico)} title="Ver detalhes">
+                              <Info size={14} />
+                            </button>
                             <button className="btn-icon edit" onClick={() => openEditForm('servicos', servico)} title="Editar">
                               <Edit2 size={14} />
                             </button>
@@ -872,7 +1086,14 @@ export default function App() {
                       ))}
                     {servicos.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <td
+                          colSpan="6"
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           Nenhum serviço cadastrado.
                         </td>
                       </tr>
@@ -902,6 +1123,7 @@ export default function App() {
                 <table className="crud-table">
                   <thead>
                     <tr>
+                      <th>ID</th>
                       <th>Nome</th>
                       <th>Descrição</th>
                       <th>Ações</th>
@@ -909,24 +1131,45 @@ export default function App() {
                   </thead>
                   <tbody>
                     {tiposRoupa
-                      .filter((t) => t.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter((t) => {
+                        const busca = searchTerm.toLowerCase();
+
+                        return t.nome?.toLowerCase().includes(busca) || t._id?.toLowerCase().includes(busca) || t._id?.slice(-6).toLowerCase().includes(busca);
+                      })
                       .map((tipo, index) => (
                         <tr key={tipo._id || index}>
+                          <td>{tipo._id.slice(-6).toUpperCase()}</td>
+
                           <td>{tipo.nome}</td>
-                          <td>{tipo.descricao || 'Sem descrição'}</td>
+
+                          <td>{tipo.descricao ? (tipo.descricao.length > 35 ? tipo.descricao.substring(0, 35) + '...' : tipo.descricao) : '-'}</td>
+
                           <td className="actions-cell">
+                            <button className="btn-icon" onClick={() => openDetail('tiposRoupa', tipo)} title="Ver detalhes">
+                              <Info size={14} />
+                            </button>
+
                             <button className="btn-icon edit" onClick={() => openEditForm('tiposRoupa', tipo)} title="Editar">
                               <Edit2 size={14} />
                             </button>
+
                             <button className="btn-icon delete" onClick={() => handleDelete('tiposRoupa', tipo._id)} title="Excluir">
                               <Trash2 size={14} />
                             </button>
                           </td>
                         </tr>
                       ))}
+
                     {tiposRoupa.length === 0 && (
                       <tr>
-                        <td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <td
+                          colSpan="4"
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           Nenhum tipo de roupa cadastrado.
                         </td>
                       </tr>
@@ -952,6 +1195,7 @@ export default function App() {
                   />
                 </div>
               </div>
+
               <div className="crud-table-wrapper">
                 <table className="crud-table">
                   <thead>
@@ -960,31 +1204,56 @@ export default function App() {
                       <th>Cliente</th>
                       <th>Valor Total</th>
                       <th>Status</th>
-                      <th>Entrada</th>
+                      <th>Data de Entrada</th>
+                      <th>Data Prevista</th>
+                      <th>Observações</th>
                       <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pedidos
-                      .filter((p) => p.cliente_id?.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter((p) => {
+                        const busca = searchTerm.toLowerCase().trim();
+
+                        const dataEntrada = p.data_entrada ? new Date(p.data_entrada).toLocaleDateString('pt-BR') : '';
+
+                        const dataPrevista = p.data_prevista ? new Date(p.data_prevista).toLocaleDateString('pt-BR') : '';
+
+                        return (
+                          p._id?.toLowerCase().includes(busca) ||
+                          p._id?.slice(-6).toLowerCase().includes(busca) ||
+                          p.cliente_id?.nome?.toLowerCase().includes(busca) ||
+                          (typeof p.cliente_id === 'string' ? p.cliente_id : p.cliente_id?._id)?.toLowerCase().includes(busca) ||
+                          (typeof p.usuario_id === 'string' ? p.usuario_id : p.usuario_id?._id)?.toLowerCase().includes(busca) ||
+                          p.status?.toLowerCase().includes(busca) ||
+                          dataEntrada.includes(busca) ||
+                          dataPrevista.includes(busca)
+                        );
+                      })
                       .map((pedido, index) => (
                         <tr key={pedido._id || index}>
                           <td>{(pedido._id || '').slice(-6).toUpperCase()}</td>
                           <td>{pedido.cliente_id?.nome || 'Desconhecido'}</td>
                           <td>R$ {(pedido.valor_total || 0).toFixed(2)}</td>
+
                           <td>
                             <span
-                              className={`badge ${pedido.status === 'finalizado' || pedido.status === 'entregue'
+                              className={`badge ${
+                                pedido.status === 'finalizado' || pedido.status === 'entregue'
                                   ? 'badge-success'
                                   : pedido.status === 'em andamento'
                                     ? 'badge-info'
                                     : 'badge-warning'
-                                }`}
+                              }`}
                             >
                               {pedido.status}
                             </span>
                           </td>
                           <td>{pedido.data_entrada ? new Date(pedido.data_entrada).toLocaleDateString('pt-BR') : '-'}</td>
+                          <td>{pedido.data_prevista ? new Date(pedido.data_prevista).toLocaleDateString('pt-BR') : '-'}</td>
+                          <td>
+                            {pedido.observacoes ? (pedido.observacoes.length > 30 ? pedido.observacoes.substring(0, 30) + '...' : pedido.observacoes) : '-'}
+                          </td>
                           <td className="actions-cell">
                             <button className="btn-icon" onClick={() => openDetail('pedidos', pedido)} title="Ver Detalhes">
                               <Info size={14} />
@@ -1000,7 +1269,14 @@ export default function App() {
                       ))}
                     {pedidos.length === 0 && (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <td
+                          colSpan="6"
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           Nenhum pedido cadastrado.
                         </td>
                       </tr>
@@ -1062,7 +1338,14 @@ export default function App() {
                       ))}
                     {usuarios.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        <td
+                          colSpan="5"
+                          style={{
+                            textAlign: 'center',
+                            padding: '20px',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
                           Nenhum usuário cadastrado.
                         </td>
                       </tr>
@@ -1104,44 +1387,81 @@ export default function App() {
                   {activeEntity === 'clientes' && (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Nome Completo</label>
+                        <label className="input-label">
+                          Nome Completo <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={clientForm.nome}
-                          onChange={(e) => setClientForm({ ...clientForm, nome: e.target.value })}
+                          onChange={(e) =>
+                            setClientForm({
+                              ...clientForm,
+                              nome: e.target.value,
+                            })
+                          }
                           required
+                          minLength={3}
+                          maxLength={100}
+                          placeholder="Insira seu nome completo"
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">E-mail</label>
+                        <label className="input-label">
+                          E-mail <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="email"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={clientForm.email}
-                          onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })}
+                          required
+                          maxLength={150}
+                          onChange={(e) =>
+                            setClientForm({
+                              ...clientForm,
+                              email: e.target.value,
+                            })
+                          }
+                          placeholder="Example@gmail.com"
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Telefone</label>
+                        <label className="input-label">
+                          Telefone <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={clientForm.telefone}
-                          onChange={(e) => setClientForm({ ...clientForm, telefone: e.target.value })}
+                          onChange={(e) =>
+                            setClientForm({
+                              ...clientForm,
+                              telefone: formatPhone(e.target.value),
+                            })
+                          }
+                          placeholder="(ddd) 00000-0000"
+                          maxLength={15}
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">CPF / CNPJ</label>
+                        <label className="input-label">
+                          CPF / CNPJ <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={clientForm.cpf_cnpj}
-                          onChange={(e) => setClientForm({ ...clientForm, cpf_cnpj: e.target.value })}
+                          onChange={(e) =>
+                            setClientForm({
+                              ...clientForm,
+                              cpf_cnpj: formatCpfCnpj(e.target.value),
+                            })
+                          }
+                          placeholder="Insira seu CPF/CNPJ"
                         />
                       </div>
                       <div className="input-group">
@@ -1149,7 +1469,12 @@ export default function App() {
                         <textarea
                           className="form-textarea"
                           value={clientForm.observacoes}
-                          onChange={(e) => setClientForm({ ...clientForm, observacoes: e.target.value })}
+                          onChange={(e) =>
+                            setClientForm({
+                              ...clientForm,
+                              observacoes: e.target.value,
+                            })
+                          }
                         />
                       </div>
                     </>
@@ -1159,13 +1484,40 @@ export default function App() {
                   {activeEntity === 'servicos' && (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Nome do Serviço</label>
+                        <label className="input-label">
+                          Nome do Serviço <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={serviceForm.nome}
-                          onChange={(e) => setServiceForm({ ...serviceForm, nome: e.target.value })}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              nome: e.target.value,
+                            })
+                          }
+                          required
+                          placeholder="Insira o nome do serviço"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label className="input-label">
+                          Preço (R$) <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ paddingLeft: '20px' }}
+                          value={serviceForm.preco}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              preco: formatCurrency(e.target.value),
+                            })
+                          }
+                          placeholder="R$ 0,00"
                           required
                         />
                       </div>
@@ -1174,31 +1526,41 @@ export default function App() {
                         <textarea
                           className="form-textarea"
                           value={serviceForm.descricao}
-                          onChange={(e) => setServiceForm({ ...serviceForm, descricao: e.target.value })}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              descricao: e.target.value,
+                            })
+                          }
                         />
                       </div>
-                      <div className="input-group">
-                        <label className="input-label">Preço (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-input"
-                          style={{ paddingLeft: '20px' }}
-                          value={serviceForm.preco}
-                          onChange={(e) => setServiceForm({ ...serviceForm, preco: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="input-group" style={{ flexDirection: 'row', gap: '10px', alignItems: 'center', paddingLeft: '4px' }}>
+                      <div
+                        className="input-group"
+                        style={{
+                          flexDirection: 'row',
+                          gap: '10px',
+                          alignItems: 'center',
+                          paddingLeft: '4px',
+                        }}
+                      >
                         <input
                           type="checkbox"
                           id="servico_ativo"
                           checked={serviceForm.ativo}
-                          onChange={(e) => setServiceForm({ ...serviceForm, ativo: e.target.checked })}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          onChange={(e) =>
+                            setServiceForm({
+                              ...serviceForm,
+                              ativo: e.target.checked,
+                            })
+                          }
+                          style={{
+                            cursor: 'pointer',
+                            width: '16px',
+                            height: '16px',
+                          }}
                         />
                         <label htmlFor="servico_ativo" style={{ cursor: 'pointer', fontSize: '13px' }}>
-                          Serviço Ativo
+                          Serviço Ativo <span style={{ color: '#ff4d6d' }}>*</span>
                         </label>
                       </div>
                     </>
@@ -1208,14 +1570,22 @@ export default function App() {
                   {activeEntity === 'tiposRoupa' && (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Nome do Tipo</label>
+                        <label className="input-label">
+                          Nome do Tipo <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={tipoRoupaForm.nome}
-                          onChange={(e) => setTipoRoupaForm({ ...tipoRoupaForm, nome: e.target.value })}
+                          onChange={(e) =>
+                            setTipoRoupaForm({
+                              ...tipoRoupaForm,
+                              nome: e.target.value,
+                            })
+                          }
                           required
+                          placeholder="Insira o tipo de roupa"
                         />
                       </div>
                       <div className="input-group">
@@ -1223,7 +1593,12 @@ export default function App() {
                         <textarea
                           className="form-textarea"
                           value={tipoRoupaForm.descricao}
-                          onChange={(e) => setTipoRoupaForm({ ...tipoRoupaForm, descricao: e.target.value })}
+                          onChange={(e) =>
+                            setTipoRoupaForm({
+                              ...tipoRoupaForm,
+                              descricao: e.target.value,
+                            })
+                          }
                         />
                       </div>
                     </>
@@ -1233,7 +1608,9 @@ export default function App() {
                   {activeEntity === 'usuarios' && (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Nome Completo</label>
+                        <label className="input-label">
+                          Nome Completo <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="text"
                           className="form-input"
@@ -1241,10 +1618,13 @@ export default function App() {
                           value={userForm.nome}
                           onChange={(e) => setUserForm({ ...userForm, nome: e.target.value })}
                           required
+                          placeholder="Insira o nome completo"
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">E-mail</label>
+                        <label className="input-label">
+                          E-mail <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="email"
                           className="form-input"
@@ -1252,39 +1632,75 @@ export default function App() {
                           value={userForm.email}
                           onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
                           required
+                          placeholder="example@gmail.com"
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Senha</label>
+                        <label className="input-label">
+                          Senha <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <input
                           type="password"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={userForm.senha_hash}
-                          onChange={(e) => setUserForm({ ...userForm, senha_hash: e.target.value })}
+                          onChange={(e) =>
+                            setUserForm({
+                              ...userForm,
+                              senha_hash: e.target.value,
+                            })
+                          }
                           required={!editId}
-                          placeholder={editId ? 'Preencha apenas se quiser alterar' : ''}
+                          placeholder="Insira a senha do usuário"
                         />
                       </div>
                       <div className="input-group">
-                        <label className="input-label">Perfil de Acesso</label>
+                        <label className="input-label">
+                          Perfil de Acesso <span style={{ color: '#ff4d6d' }}>*</span>
+                        </label>
                         <div className="select-wrapper">
-                          <select className="form-select" value={userForm.perfil} onChange={(e) => setUserForm({ ...userForm, perfil: e.target.value })}>
+                          <select
+                            className="form-select"
+                            value={userForm.perfil}
+                            onChange={(e) =>
+                              setUserForm({
+                                ...userForm,
+                                perfil: e.target.value,
+                              })
+                            }
+                          >
                             <option value="admin">Administrador</option>
                             <option value="operador">Operador</option>
                           </select>
                         </div>
                       </div>
-                      <div className="input-group" style={{ flexDirection: 'row', gap: '10px', alignItems: 'center', paddingLeft: '4px' }}>
+                      <div
+                        className="input-group"
+                        style={{
+                          flexDirection: 'row',
+                          gap: '10px',
+                          alignItems: 'center',
+                          paddingLeft: '4px',
+                        }}
+                      >
                         <input
                           type="checkbox"
                           id="usuario_ativo"
                           checked={userForm.ativo}
-                          onChange={(e) => setUserForm({ ...userForm, ativo: e.target.checked })}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          onChange={(e) =>
+                            setUserForm({
+                              ...userForm,
+                              ativo: e.target.checked,
+                            })
+                          }
+                          style={{
+                            cursor: 'pointer',
+                            width: '16px',
+                            height: '16px',
+                          }}
                         />
                         <label htmlFor="usuario_ativo" style={{ cursor: 'pointer', fontSize: '13px' }}>
-                          Usuário Ativo
+                          Usuário Ativo <span style={{ color: '#ff4d6d' }}>*</span>
                         </label>
                       </div>
                     </>
@@ -1294,28 +1710,53 @@ export default function App() {
                   {activeEntity === 'pedidos' && (
                     <>
                       <div className="input-group">
-                        <label className="input-label">Cliente</label>
+                        <label className="input-label">Funcionário</label>
                         <div className="select-wrapper">
                           <select
                             className="form-select"
-                            value={pedidoForm.cliente_id}
-                            onChange={(e) => setPedidoForm({ ...pedidoForm, cliente_id: e.target.value })}
+                            value={pedidoForm.usuario_id}
+                            onChange={(e) =>
+                              setPedidoForm({
+                                ...pedidoForm,
+                                usuario_id: e.target.value,
+                              })
+                            }
                             required
                           >
-                            {clientes.map((c) => (
-                              <option key={c._id} value={c._id}>
-                                {c.nome}
+                            {usuarios.map((u) => (
+                              <option key={u._id} value={u._id}>
+                                {u.nome}
                               </option>
                             ))}
-                            {clientes.length === 0 && <option value="">Cadastre um cliente primeiro</option>}
+
+                            {usuarios.length === 0 && <option value="">Cadastre um usuário primeiro</option>}
                           </select>
                         </div>
+                      </div>
+                      <div className="input-group">
+                        <label className="input-label">Funcionário</label>
+                        <input type="text" className="form-input" style={{ paddingLeft: '20px' }} value={user?.nome || ''} disabled />
+                      </div>
+
+                      <div className="input-group">
+                        <label className="input-label">Data de Entrada</label>
+
+                        <input type="date" className="form-input" style={{ paddingLeft: '20px' }} value={new Date().toISOString().split('T')[0]} disabled />
                       </div>
 
                       <div className="input-group">
                         <label className="input-label">Status do Pedido</label>
                         <div className="select-wrapper">
-                          <select className="form-select" value={pedidoForm.status} onChange={(e) => setPedidoForm({ ...pedidoForm, status: e.target.value })}>
+                          <select
+                            className="form-select"
+                            value={pedidoForm.status}
+                            onChange={(e) =>
+                              setPedidoForm({
+                                ...pedidoForm,
+                                status: e.target.value,
+                              })
+                            }
+                          >
                             <option value="pendente">Pendente</option>
                             <option value="em andamento">Em Andamento</option>
                             <option value="pronto">Pronto</option>
@@ -1332,19 +1773,29 @@ export default function App() {
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={pedidoForm.data_prevista}
-                          onChange={(e) => setPedidoForm({ ...pedidoForm, data_prevista: e.target.value })}
+                          onChange={(e) =>
+                            setPedidoForm({
+                              ...pedidoForm,
+                              data_prevista: e.target.value,
+                            })
+                          }
                         />
                       </div>
 
                       <div className="input-group">
                         <label className="input-label">Valor Total (R$)</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           className="form-input"
                           style={{ paddingLeft: '20px' }}
                           value={pedidoForm.valor_total}
-                          onChange={(e) => setPedidoForm({ ...pedidoForm, valor_total: e.target.value })}
+                          onChange={(e) =>
+                            setPedidoForm({
+                              ...pedidoForm,
+                              valor_total: formatCurrency(e.target.value),
+                            })
+                          }
+                          placeholder="R$ 0,00"
                           required
                         />
                       </div>
@@ -1354,14 +1805,18 @@ export default function App() {
                         <textarea
                           className="form-textarea"
                           value={pedidoForm.observacoes}
-                          onChange={(e) => setPedidoForm({ ...pedidoForm, observacoes: e.target.value })}
+                          onChange={(e) =>
+                            setPedidoForm({
+                              ...pedidoForm,
+                              observacoes: e.target.value,
+                            })
+                          }
                         />
                       </div>
                     </>
                   )}
                 </div>
               </div>
-
               <footer className="modal-footer">
                 <button type="button" className="btn-small secondary" onClick={() => setIsFormModalOpen(false)}>
                   Cancelar
@@ -1420,6 +1875,76 @@ export default function App() {
                   </>
                 )}
 
+                {/* SERVICO DETAILS */}
+                {activeEntity === 'servicos' && (
+                  <>
+                    <div className="detail-item">
+                      <span className="detail-label">ID</span>
+                      <span className="detail-val">{detailData._id?.slice(-6).toUpperCase()}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Nome</span>
+                      <span className="detail-val">{detailData.nome}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Descrição</span>
+                      <span className="detail-val">{detailData.descricao || 'Não informado'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Preço</span>
+                      <span className="detail-val">R$ {(detailData.preco || 0).toFixed(2)}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Status</span>
+                      <span className="detail-val">{detailData.ativo ? 'Ativo' : 'Inativo'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Criado em</span>
+                      <span className="detail-val">{detailData.created_at ? new Date(detailData.created_at).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Atualizado em</span>
+                      <span className="detail-val">{detailData.updated_at ? new Date(detailData.updated_at).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+                  </>
+                )}
+
+                {/* TIPO DE ROUPA DETAILS */}
+                {activeEntity === 'tiposRoupa' && (
+                  <>
+                    <div className="detail-item">
+                      <span className="detail-label">ID</span>
+                      <span className="detail-val">{detailData._id?.slice(-6).toUpperCase()}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Nome</span>
+                      <span className="detail-val">{detailData.nome}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Descrição</span>
+                      <span className="detail-val">{detailData.descricao || 'Não informado'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Criado em</span>
+                      <span className="detail-val">{detailData.created_at ? new Date(detailData.created_at).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+
+                    <div className="detail-item">
+                      <span className="detail-label">Atualizado em</span>
+                      <span className="detail-val">{detailData.updated_at ? new Date(detailData.updated_at).toLocaleString('pt-BR') : '-'}</span>
+                    </div>
+                  </>
+                )}
+
                 {/* PEDIDO DETAILS */}
                 {activeEntity === 'pedidos' && (
                   <>
@@ -1438,12 +1963,13 @@ export default function App() {
                     <div className="detail-item">
                       <span className="detail-label">Status</span>
                       <span
-                        className={`badge ${detailData.status === 'finalizado' || detailData.status === 'entregue'
+                        className={`badge ${
+                          detailData.status === 'finalizado' || detailData.status === 'entregue'
                             ? 'badge-success'
                             : detailData.status === 'em andamento'
                               ? 'badge-info'
                               : 'badge-warning'
-                          }`}
+                        }`}
                       >
                         {detailData.status}
                       </span>
@@ -1471,39 +1997,63 @@ export default function App() {
 
                     {/* SEÇÃO DE ITENS DO PEDIDO E SEUS SERVIÇOS */}
                     <div style={{ gridColumn: 'span 2', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '15px', color: 'var(--green-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4
+                        style={{
+                          fontSize: '15px',
+                          fontWeight: '700',
+                          marginBottom: '15px',
+                          color: 'var(--green-light)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
                         <Shirt size={18} /> Itens do Pedido
                       </h4>
 
                       {/* Lista de itens existentes */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         {pedidoItens
-                          .filter(item => (item.pedido_id?._id || item.pedido_id) === detailData._id)
+                          .filter((item) => (item.pedido_id?._id || item.pedido_id) === detailData._id)
                           .map((item, idx) => {
                             const isEditing = editingItemId === item._id;
-                            const itemServices = pedidoItemServicos.filter(s => (s.pedido_item_id?._id || s.pedido_item_id) === item._id);
+                            const itemServices = pedidoItemServicos.filter((s) => (s.pedido_item_id?._id || s.pedido_item_id) === item._id);
 
                             return (
-                              <div key={item._id || idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                              <div
+                                key={item._id || idx}
+                                style={{
+                                  background: 'rgba(255,255,255,0.02)',
+                                  padding: '12px 16px',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(255,255,255,0.06)',
+                                }}
+                              >
                                 {isEditing ? (
                                   /* Edição do Item */
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                       <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="input-label" style={{ fontSize: '11px' }}>Tipo de Roupa</label>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>
+                                          Tipo de Roupa
+                                        </label>
                                         <select
                                           className="form-select"
                                           style={{ height: '36px', padding: '6px' }}
                                           value={editItemForm.tipo_roupa_id}
                                           onChange={(e) => setEditItemForm({ ...editItemForm, tipo_roupa_id: e.target.value })}
                                         >
-                                          {tiposRoupa.map(tr => (
-                                            <option key={tr._id} value={tr._id}>{tr.nome}</option>
+                                          {tiposRoupa.map((tr) => (
+                                            <option key={tr._id} value={tr._id}>
+                                              {tr.nome}
+                                            </option>
                                           ))}
                                         </select>
                                       </div>
                                       <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="input-label" style={{ fontSize: '11px' }}>Quantidade</label>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>
+                                          Quantidade
+                                        </label>
                                         <input
                                           type="number"
                                           className="form-input"
@@ -1515,7 +2065,9 @@ export default function App() {
                                     </div>
 
                                     <div className="input-group" style={{ margin: 0 }}>
-                                      <label className="input-label" style={{ fontSize: '11px' }}>Descrição</label>
+                                      <label className="input-label" style={{ fontSize: '11px' }}>
+                                        Descrição
+                                      </label>
                                       <input
                                         type="text"
                                         className="form-input"
@@ -1527,7 +2079,9 @@ export default function App() {
 
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                       <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="input-label" style={{ fontSize: '11px' }}>Status</label>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>
+                                          Status
+                                        </label>
                                         <select
                                           className="form-select"
                                           style={{ height: '36px', padding: '6px' }}
@@ -1542,7 +2096,9 @@ export default function App() {
                                         </select>
                                       </div>
                                       <div className="input-group" style={{ margin: 0 }}>
-                                        <label className="input-label" style={{ fontSize: '11px' }}>Valor Total (R$)</label>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>
+                                          Valor Total (R$)
+                                        </label>
                                         <input
                                           type="number"
                                           step="0.01"
@@ -1555,8 +2111,22 @@ export default function App() {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
-                                      <button type="button" className="btn-small primary" style={{ padding: '6px 12px' }} onClick={() => handleUpdateItem(item._id)}>Salvar</button>
-                                      <button type="button" className="btn-small secondary" style={{ padding: '6px 12px' }} onClick={() => setEditingItemId(null)}>Cancelar</button>
+                                      <button
+                                        type="button"
+                                        className="btn-small primary"
+                                        style={{ padding: '6px 12px' }}
+                                        onClick={() => handleUpdateItem(item._id)}
+                                      >
+                                        Salvar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn-small secondary"
+                                        style={{ padding: '6px 12px' }}
+                                        onClick={() => setEditingItemId(null)}
+                                      >
+                                        Cancelar
+                                      </button>
                                     </div>
                                   </div>
                                 ) : (
@@ -1567,12 +2137,15 @@ export default function App() {
                                         {item.tipo_roupa_id?.nome || 'Roupa desconhecida'} (x{item.quantidade})
                                       </span>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className={`badge ${item.status === 'finalizado' || item.status === 'entregue'
-                                            ? 'badge-success'
-                                            : item.status === 'em andamento'
-                                              ? 'badge-info'
-                                              : 'badge-warning'
-                                          }`}>
+                                        <span
+                                          className={`badge ${
+                                            item.status === 'finalizado' || item.status === 'entregue'
+                                              ? 'badge-success'
+                                              : item.status === 'em andamento'
+                                                ? 'badge-info'
+                                                : 'badge-warning'
+                                          }`}
+                                        >
                                           {item.status}
                                         </span>
                                         <span style={{ fontWeight: '600', color: 'var(--green-light)', marginLeft: '8px' }}>
@@ -1581,22 +2154,38 @@ export default function App() {
                                       </div>
                                     </div>
 
-                                    {item.descricao && (
-                                      <p style={{ margin: '6px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                                        {item.descricao}
-                                      </p>
-                                    )}
+                                    {item.descricao && <p style={{ margin: '6px 0', fontSize: '12px', color: 'var(--text-muted)' }}>{item.descricao}</p>}
 
                                     {/* Subseção de Serviços do Item */}
                                     <div style={{ marginTop: '12px', paddingLeft: '15px', borderLeft: '2px solid rgba(255,255,255,0.08)' }}>
-                                      <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                                      <span
+                                        style={{
+                                          fontSize: '10px',
+                                          fontWeight: '700',
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.05em',
+                                          color: 'var(--text-muted)',
+                                        }}
+                                      >
                                         Serviços do Item
                                       </span>
 
                                       {/* Lista de Serviços */}
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
                                         {itemServices.map((s, idxS) => (
-                                          <div key={s._id || idxS} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                          <div
+                                            key={s._id || idxS}
+                                            style={{
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              alignItems: 'center',
+                                              fontSize: '12px',
+                                              background: 'rgba(255,255,255,0.02)',
+                                              padding: '6px 10px',
+                                              borderRadius: '4px',
+                                              border: '1px solid rgba(255,255,255,0.03)',
+                                            }}
+                                          >
                                             <span>
                                               {s.servico_id?.nome || 'Serviço'} (x{s.quantidade}) - R$ {(s.preco_unitario || 0).toFixed(2)}/un
                                             </span>
@@ -1628,14 +2217,18 @@ export default function App() {
                                             className="form-select"
                                             style={{ fontSize: '12px', padding: '4px 8px', height: '30px' }}
                                             value={newServiceForm[item._id]?.servico_id || ''}
-                                            onChange={(e) => setNewServiceForm({
-                                              ...newServiceForm,
-                                              [item._id]: { ...(newServiceForm[item._id] || { quantidade: 1 }), servico_id: e.target.value }
-                                            })}
+                                            onChange={(e) =>
+                                              setNewServiceForm({
+                                                ...newServiceForm,
+                                                [item._id]: { ...(newServiceForm[item._id] || { quantidade: 1 }), servico_id: e.target.value },
+                                              })
+                                            }
                                           >
                                             <option value="">Selecione um serviço...</option>
-                                            {servicos.map(s => (
-                                              <option key={s._id} value={s._id}>{s.nome} (R$ {(s.preco || 0).toFixed(2)})</option>
+                                            {servicos.map((s) => (
+                                              <option key={s._id} value={s._id}>
+                                                {s.nome} (R$ {(s.preco || 0).toFixed(2)})
+                                              </option>
                                             ))}
                                           </select>
                                         </div>
@@ -1646,10 +2239,12 @@ export default function App() {
                                             style={{ fontSize: '12px', padding: '4px 8px', height: '30px', textAlign: 'center' }}
                                             min="1"
                                             value={newServiceForm[item._id]?.quantidade || 1}
-                                            onChange={(e) => setNewServiceForm({
-                                              ...newServiceForm,
-                                              [item._id]: { ...(newServiceForm[item._id] || { servico_id: '' }), quantidade: Number(e.target.value) }
-                                            })}
+                                            onChange={(e) =>
+                                              setNewServiceForm({
+                                                ...newServiceForm,
+                                                [item._id]: { ...(newServiceForm[item._id] || { servico_id: '' }), quantidade: Number(e.target.value) },
+                                              })
+                                            }
                                           />
                                         </div>
                                         <button
@@ -1664,18 +2259,45 @@ export default function App() {
                                     </div>
 
                                     {/* Ações do Item (Editar/Excluir) */}
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-end',
+                                        gap: '12px',
+                                        marginTop: '12px',
+                                        borderTop: '1px solid rgba(255,255,255,0.04)',
+                                        paddingTop: '8px',
+                                      }}
+                                    >
                                       <button
                                         type="button"
                                         onClick={() => handleEditItem(item)}
-                                        style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#60a5fa',
+                                          cursor: 'pointer',
+                                          fontSize: '11px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                        }}
                                       >
                                         <Edit2 size={12} /> Editar Item
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => handleDeleteItem(item._id)}
-                                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#f87171',
+                                          cursor: 'pointer',
+                                          fontSize: '11px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                        }}
                                       >
                                         <Trash2 size={12} /> Excluir Item
                                       </button>
@@ -1686,19 +2308,39 @@ export default function App() {
                             );
                           })}
 
-                        {pedidoItens.filter(item => (item.pedido_id?._id || item.pedido_id) === detailData._id).length === 0 && (
-                          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.05)', fontSize: '12px' }}>
+                        {pedidoItens.filter((item) => (item.pedido_id?._id || item.pedido_id) === detailData._id).length === 0 && (
+                          <div
+                            style={{
+                              textAlign: 'center',
+                              padding: '20px',
+                              color: 'var(--text-muted)',
+                              background: 'rgba(255,255,255,0.01)',
+                              borderRadius: '8px',
+                              border: '1px dashed rgba(255,255,255,0.05)',
+                              fontSize: '12px',
+                            }}
+                          >
                             Nenhum item cadastrado para este pedido.
                           </div>
                         )}
                       </div>
 
                       {/* Formulário para Adicionar Novo Item */}
-                      <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.01)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div
+                        style={{
+                          marginTop: '20px',
+                          background: 'rgba(255,255,255,0.01)',
+                          padding: '16px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255,255,255,0.04)',
+                        }}
+                      >
                         <h5 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: '#fff' }}>Adicionar Item ao Pedido</h5>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div className="input-group" style={{ margin: 0 }}>
-                            <label className="input-label" style={{ fontSize: '11px' }}>Tipo de Roupa</label>
+                            <label className="input-label" style={{ fontSize: '11px' }}>
+                              Tipo de Roupa
+                            </label>
                             <select
                               className="form-select"
                               style={{ height: '36px', padding: '6px' }}
@@ -1706,13 +2348,17 @@ export default function App() {
                               onChange={(e) => setNewItemForm({ ...newItemForm, tipo_roupa_id: e.target.value })}
                             >
                               <option value="">Selecione...</option>
-                              {tiposRoupa.map(tr => (
-                                <option key={tr._id} value={tr._id}>{tr.nome}</option>
+                              {tiposRoupa.map((tr) => (
+                                <option key={tr._id} value={tr._id}>
+                                  {tr.nome}
+                                </option>
                               ))}
                             </select>
                           </div>
                           <div className="input-group" style={{ margin: 0 }}>
-                            <label className="input-label" style={{ fontSize: '11px' }}>Quantidade</label>
+                            <label className="input-label" style={{ fontSize: '11px' }}>
+                              Quantidade
+                            </label>
                             <input
                               type="number"
                               className="form-input"
@@ -1725,7 +2371,9 @@ export default function App() {
                         </div>
 
                         <div className="input-group" style={{ marginTop: '10px', marginBottom: 0 }}>
-                          <label className="input-label" style={{ fontSize: '11px' }}>Descrição / Observações do Item</label>
+                          <label className="input-label" style={{ fontSize: '11px' }}>
+                            Descrição / Observações do Item
+                          </label>
                           <input
                             type="text"
                             className="form-input"
@@ -1738,7 +2386,9 @@ export default function App() {
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
                           <div className="input-group" style={{ margin: 0 }}>
-                            <label className="input-label" style={{ fontSize: '11px' }}>Status</label>
+                            <label className="input-label" style={{ fontSize: '11px' }}>
+                              Status
+                            </label>
                             <select
                               className="form-select"
                               style={{ height: '36px', padding: '6px' }}
@@ -1753,7 +2403,9 @@ export default function App() {
                             </select>
                           </div>
                           <div className="input-group" style={{ margin: 0 }}>
-                            <label className="input-label" style={{ fontSize: '11px' }}>Valor do Item (R$)</label>
+                            <label className="input-label" style={{ fontSize: '11px' }}>
+                              Valor do Item (R$)
+                            </label>
                             <input
                               type="number"
                               step="0.01"

@@ -994,4 +994,9 @@ body::after {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
-
+.input-error{
+    border: 2px solid #9d4dff !important;
+    box-shadow:
+        0 0 8px rgba(157,77,255,.8),
+        0 0 18px rgba(157,77,255,.5);
+}
