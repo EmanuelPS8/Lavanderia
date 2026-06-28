@@ -44,8 +44,20 @@ const Servico = require('../models/Servico');
  * @swagger
  * /servicos:
  *   get:
- *     summary: Retorna todos os serviços
+ *     summary: Retorna todos os serviços (permite filtrar por nome ou data)
  *     tags: [Serviços - Otávio Frasson]
+ *     parameters:
+ *       - in: query
+ *         name: nome
+ *         schema:
+ *           type: string
+ *         description: Filtrar por parte do nome
+ *       - in: query
+ *         name: data
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filtrar por data de criação (AAAA-MM-DD)
  *     responses:
  *       200:
  *         description: Lista de todos os serviços
@@ -59,7 +71,18 @@ const Servico = require('../models/Servico');
 //GET all services
 router.get('/', async (req, res) => {
   try {
-    const servicos = await Servico.find();
+    const { nome, data } = req.query;
+    let query = {};
+    if (nome) {
+      query.nome = { $regex: nome, $options: 'i' };
+    }
+    if (data) {
+      query.created_at = {
+        $gte: new Date(`${data}T00:00:00.000Z`),
+        $lte: new Date(`${data}T23:59:59.999Z`)
+      };
+    }
+    const servicos = await Servico.find(query);
     return res.json(servicos);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao buscar serviços', error: error.message });

@@ -51,6 +51,8 @@ export default function App() {
   const [tiposRoupa, setTiposRoupa] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [pedidoItens, setPedidoItens] = useState([]);
+  const [pedidoItemServicos, setPedidoItemServicos] = useState([]);
 
   // Estados dos Modais
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -66,6 +68,12 @@ export default function App() {
   const [userForm, setUserForm] = useState({ nome: '', email: '', senha_hash: '', perfil: 'operador', ativo: true });
   const [pedidoForm, setPedidoForm] = useState({ cliente_id: '', status: 'pendente', data_prevista: '', valor_total: '0', observacoes: '' });
 
+  // Estados dos Sub-itens do Pedido
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemForm, setEditItemForm] = useState({ tipo_roupa_id: '', quantidade: 1, descricao: '', status: 'pendente', valor_total: 0 });
+  const [newItemForm, setNewItemForm] = useState({ tipo_roupa_id: '', quantidade: 1, descricao: '', status: 'pendente', valor_total: 0 });
+  const [newServiceForm, setNewServiceForm] = useState({});
+
   // Pesquisas / Filtros
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -76,12 +84,20 @@ export default function App() {
     }
   }, [user, activeTab]);
 
+  useEffect(() => {
+    if (tiposRoupa.length > 0 && !newItemForm.tipo_roupa_id) {
+      setNewItemForm(prev => ({ ...prev, tipo_roupa_id: tiposRoupa[0]._id }));
+    }
+  }, [tiposRoupa]);
+
   const loadAllData = () => {
     fetchData('clientes', setClientes);
     fetchData('servicos', setServicos);
     fetchData('tipos-roupa', setTiposRoupa);
     fetchData('usuarios', setUsuarios);
     fetchData('pedidos', setPedidos);
+    fetchData('pedidos-itens', setPedidoItens);
+    fetchData('pedido-item-servicos', setPedidoItemServicos);
   };
 
   const fetchData = async (endpoint, setter) => {
@@ -253,6 +269,118 @@ export default function App() {
       loadAllData();
     } catch (err) {
       alert(err.response?.data?.message || 'Erro ao salvar o registro.');
+    }
+  };
+
+  // Handlers para Itens de Pedido
+  const handleCreateItem = async (e) => {
+    e.preventDefault();
+    if (!newItemForm.tipo_roupa_id) {
+      alert('Selecione um tipo de roupa');
+      return;
+    }
+    try {
+      await axios.post(`${API_URL}/pedidos-itens`, {
+        pedido_id: detailData._id,
+        tipo_roupa_id: newItemForm.tipo_roupa_id,
+        quantidade: Number(newItemForm.quantidade || 1),
+        descricao: newItemForm.descricao,
+        status: newItemForm.status,
+        valor_total: Number(newItemForm.valor_total || 0)
+      });
+      setNewItemForm({
+        tipo_roupa_id: tiposRoupa[0]?._id || '',
+        quantidade: 1,
+        descricao: '',
+        status: 'pendente',
+        valor_total: 0
+      });
+      loadAllData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erro ao criar item do pedido.');
+    }
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItemId(item._id);
+    setEditItemForm({
+      tipo_roupa_id: item.tipo_roupa_id?._id || item.tipo_roupa_id || '',
+      quantidade: item.quantidade || 1,
+      descricao: item.descricao || '',
+      status: item.status || 'pendente',
+      valor_total: item.valor_total || 0
+    });
+  };
+
+  const handleUpdateItem = async (itemId) => {
+    try {
+      await axios.put(`${API_URL}/pedidos-itens/${itemId}`, {
+        pedido_id: detailData._id,
+        tipo_roupa_id: editItemForm.tipo_roupa_id,
+        quantidade: Number(editItemForm.quantidade || 1),
+        descricao: editItemForm.descricao,
+        status: editItemForm.status,
+        valor_total: Number(editItemForm.valor_total || 0)
+      });
+      setEditingItemId(null);
+      loadAllData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erro ao atualizar item do pedido.');
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    if (!window.confirm('Tem certeza que deseja apagar este item?')) return;
+    try {
+      await axios.delete(`${API_URL}/pedidos-itens/${itemId}`);
+      loadAllData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erro ao apagar item do pedido.');
+    }
+  };
+
+  // Handlers para Serviços do Item do Pedido
+  const handleAddService = async (itemId) => {
+    const form = newServiceForm[itemId];
+    let servicoId = form?.servico_id;
+    let quant = Number(form?.quantidade || 1);
+
+    if (!servicoId) {
+      if (servicos.length > 0) {
+        servicoId = servicos[0]._id;
+      } else {
+        alert('Selecione um serviço');
+        return;
+      }
+    }
+
+    const selectedService = servicos.find(s => s._id === servicoId);
+    if (!selectedService) return;
+
+    try {
+      await axios.post(`${API_URL}/pedido-item-servicos`, {
+        pedido_item_id: itemId,
+        servico_id: servicoId,
+        preco_unitario: selectedService.preco,
+        quantidade: quant
+      });
+      setNewServiceForm({
+        ...newServiceForm,
+        [itemId]: { servico_id: servicos[0]?._id || '', quantidade: 1 }
+      });
+      loadAllData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erro ao adicionar serviço ao item.');
+    }
+  };
+
+  const handleDeleteService = async (serviceId) => {
+    if (!window.confirm('Tem certeza que deseja apagar este serviço?')) return;
+    try {
+      await axios.delete(`${API_URL}/pedido-item-servicos/${serviceId}`);
+      loadAllData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Erro ao apagar serviço do item.');
     }
   };
 
@@ -606,13 +734,12 @@ export default function App() {
                           <td>{pedido.cliente_id?.nome || 'Desconhecido'}</td>
                           <td>
                             <span
-                              className={`badge ${
-                                pedido.status === 'finalizado' || pedido.status === 'entregue'
+                              className={`badge ${pedido.status === 'finalizado' || pedido.status === 'entregue'
                                   ? 'badge-success'
                                   : pedido.status === 'em andamento'
                                     ? 'badge-info'
                                     : 'badge-warning'
-                              }`}
+                                }`}
                             >
                               {pedido.status}
                             </span>
@@ -847,13 +974,12 @@ export default function App() {
                           <td>R$ {(pedido.valor_total || 0).toFixed(2)}</td>
                           <td>
                             <span
-                              className={`badge ${
-                                pedido.status === 'finalizado' || pedido.status === 'entregue'
+                              className={`badge ${pedido.status === 'finalizado' || pedido.status === 'entregue'
                                   ? 'badge-success'
                                   : pedido.status === 'em andamento'
                                     ? 'badge-info'
                                     : 'badge-warning'
-                              }`}
+                                }`}
                             >
                               {pedido.status}
                             </span>
@@ -1312,13 +1438,12 @@ export default function App() {
                     <div className="detail-item">
                       <span className="detail-label">Status</span>
                       <span
-                        className={`badge ${
-                          detailData.status === 'finalizado' || detailData.status === 'entregue'
+                        className={`badge ${detailData.status === 'finalizado' || detailData.status === 'entregue'
                             ? 'badge-success'
                             : detailData.status === 'em andamento'
                               ? 'badge-info'
                               : 'badge-warning'
-                        }`}
+                          }`}
                       >
                         {detailData.status}
                       </span>
@@ -1342,6 +1467,313 @@ export default function App() {
                       <span className="detail-val" style={{ whiteSpace: 'pre-wrap' }}>
                         {detailData.observacoes || 'Sem observações.'}
                       </span>
+                    </div>
+
+                    {/* SEÇÃO DE ITENS DO PEDIDO E SEUS SERVIÇOS */}
+                    <div style={{ gridColumn: 'span 2', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '15px', color: 'var(--green-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Shirt size={18} /> Itens do Pedido
+                      </h4>
+
+                      {/* Lista de itens existentes */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        {pedidoItens
+                          .filter(item => (item.pedido_id?._id || item.pedido_id) === detailData._id)
+                          .map((item, idx) => {
+                            const isEditing = editingItemId === item._id;
+                            const itemServices = pedidoItemServicos.filter(s => (s.pedido_item_id?._id || s.pedido_item_id) === item._id);
+
+                            return (
+                              <div key={item._id || idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                {isEditing ? (
+                                  /* Edição do Item */
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                      <div className="input-group" style={{ margin: 0 }}>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>Tipo de Roupa</label>
+                                        <select
+                                          className="form-select"
+                                          style={{ height: '36px', padding: '6px' }}
+                                          value={editItemForm.tipo_roupa_id}
+                                          onChange={(e) => setEditItemForm({ ...editItemForm, tipo_roupa_id: e.target.value })}
+                                        >
+                                          {tiposRoupa.map(tr => (
+                                            <option key={tr._id} value={tr._id}>{tr.nome}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div className="input-group" style={{ margin: 0 }}>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>Quantidade</label>
+                                        <input
+                                          type="number"
+                                          className="form-input"
+                                          style={{ height: '36px', padding: '6px 12px' }}
+                                          value={editItemForm.quantidade}
+                                          onChange={(e) => setEditItemForm({ ...editItemForm, quantidade: e.target.value })}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="input-group" style={{ margin: 0 }}>
+                                      <label className="input-label" style={{ fontSize: '11px' }}>Descrição</label>
+                                      <input
+                                        type="text"
+                                        className="form-input"
+                                        style={{ height: '36px', padding: '6px 12px' }}
+                                        value={editItemForm.descricao}
+                                        onChange={(e) => setEditItemForm({ ...editItemForm, descricao: e.target.value })}
+                                      />
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                      <div className="input-group" style={{ margin: 0 }}>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>Status</label>
+                                        <select
+                                          className="form-select"
+                                          style={{ height: '36px', padding: '6px' }}
+                                          value={editItemForm.status}
+                                          onChange={(e) => setEditItemForm({ ...editItemForm, status: e.target.value })}
+                                        >
+                                          <option value="pendente">Pendente</option>
+                                          <option value="em andamento">Em Andamento</option>
+                                          <option value="pronto">Pronto</option>
+                                          <option value="finalizado">Finalizado</option>
+                                          <option value="entregue">Entregue</option>
+                                        </select>
+                                      </div>
+                                      <div className="input-group" style={{ margin: 0 }}>
+                                        <label className="input-label" style={{ fontSize: '11px' }}>Valor Total (R$)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          className="form-input"
+                                          style={{ height: '36px', padding: '6px 12px' }}
+                                          value={editItemForm.valor_total}
+                                          onChange={(e) => setEditItemForm({ ...editItemForm, valor_total: e.target.value })}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '5px' }}>
+                                      <button type="button" className="btn-small primary" style={{ padding: '6px 12px' }} onClick={() => handleUpdateItem(item._id)}>Salvar</button>
+                                      <button type="button" className="btn-small secondary" style={{ padding: '6px 12px' }} onClick={() => setEditingItemId(null)}>Cancelar</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Visualização do Item */
+                                  <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontWeight: '600', color: '#fff', fontSize: '14px' }}>
+                                        {item.tipo_roupa_id?.nome || 'Roupa desconhecida'} (x{item.quantidade})
+                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className={`badge ${item.status === 'finalizado' || item.status === 'entregue'
+                                            ? 'badge-success'
+                                            : item.status === 'em andamento'
+                                              ? 'badge-info'
+                                              : 'badge-warning'
+                                          }`}>
+                                          {item.status}
+                                        </span>
+                                        <span style={{ fontWeight: '600', color: 'var(--green-light)', marginLeft: '8px' }}>
+                                          R$ {(item.valor_total || 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {item.descricao && (
+                                      <p style={{ margin: '6px 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                        {item.descricao}
+                                      </p>
+                                    )}
+
+                                    {/* Subseção de Serviços do Item */}
+                                    <div style={{ marginTop: '12px', paddingLeft: '15px', borderLeft: '2px solid rgba(255,255,255,0.08)' }}>
+                                      <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                                        Serviços do Item
+                                      </span>
+
+                                      {/* Lista de Serviços */}
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                                        {itemServices.map((s, idxS) => (
+                                          <div key={s._id || idxS} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', background: 'rgba(255,255,255,0.02)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <span>
+                                              {s.servico_id?.nome || 'Serviço'} (x{s.quantidade}) - R$ {(s.preco_unitario || 0).toFixed(2)}/un
+                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                              <span style={{ fontWeight: '600', color: '#fff' }}>R$ {(s.valor_total || 0).toFixed(2)}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeleteService(s._id)}
+                                                style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', padding: 0 }}
+                                                title="Remover serviço"
+                                              >
+                                                <Trash2 size={12} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+
+                                        {itemServices.length === 0 && (
+                                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', paddingLeft: '4px' }}>
+                                            Nenhum serviço associado a este item.
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Form para Adicionar Serviço */}
+                                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'flex-end' }}>
+                                        <div className="input-group" style={{ margin: 0, flex: 1 }}>
+                                          <select
+                                            className="form-select"
+                                            style={{ fontSize: '12px', padding: '4px 8px', height: '30px' }}
+                                            value={newServiceForm[item._id]?.servico_id || ''}
+                                            onChange={(e) => setNewServiceForm({
+                                              ...newServiceForm,
+                                              [item._id]: { ...(newServiceForm[item._id] || { quantidade: 1 }), servico_id: e.target.value }
+                                            })}
+                                          >
+                                            <option value="">Selecione um serviço...</option>
+                                            {servicos.map(s => (
+                                              <option key={s._id} value={s._id}>{s.nome} (R$ {(s.preco || 0).toFixed(2)})</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="input-group" style={{ margin: 0, width: '60px' }}>
+                                          <input
+                                            type="number"
+                                            className="form-input"
+                                            style={{ fontSize: '12px', padding: '4px 8px', height: '30px', textAlign: 'center' }}
+                                            min="1"
+                                            value={newServiceForm[item._id]?.quantidade || 1}
+                                            onChange={(e) => setNewServiceForm({
+                                              ...newServiceForm,
+                                              [item._id]: { ...(newServiceForm[item._id] || { servico_id: '' }), quantidade: Number(e.target.value) }
+                                            })}
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="btn-small primary"
+                                          style={{ fontSize: '11px', padding: '6px 12px', height: '30px' }}
+                                          onClick={() => handleAddService(item._id)}
+                                        >
+                                          Adicionar
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Ações do Item (Editar/Excluir) */}
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEditItem(item)}
+                                        style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      >
+                                        <Edit2 size={12} /> Editar Item
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteItem(item._id)}
+                                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      >
+                                        <Trash2 size={12} /> Excluir Item
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                        {pedidoItens.filter(item => (item.pedido_id?._id || item.pedido_id) === detailData._id).length === 0 && (
+                          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.05)', fontSize: '12px' }}>
+                            Nenhum item cadastrado para este pedido.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Formulário para Adicionar Novo Item */}
+                      <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.01)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <h5 style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: '#fff' }}>Adicionar Item ao Pedido</h5>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div className="input-group" style={{ margin: 0 }}>
+                            <label className="input-label" style={{ fontSize: '11px' }}>Tipo de Roupa</label>
+                            <select
+                              className="form-select"
+                              style={{ height: '36px', padding: '6px' }}
+                              value={newItemForm.tipo_roupa_id}
+                              onChange={(e) => setNewItemForm({ ...newItemForm, tipo_roupa_id: e.target.value })}
+                            >
+                              <option value="">Selecione...</option>
+                              {tiposRoupa.map(tr => (
+                                <option key={tr._id} value={tr._id}>{tr.nome}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="input-group" style={{ margin: 0 }}>
+                            <label className="input-label" style={{ fontSize: '11px' }}>Quantidade</label>
+                            <input
+                              type="number"
+                              className="form-input"
+                              min="1"
+                              style={{ height: '36px', padding: '6px 12px' }}
+                              value={newItemForm.quantidade}
+                              onChange={(e) => setNewItemForm({ ...newItemForm, quantidade: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="input-group" style={{ marginTop: '10px', marginBottom: 0 }}>
+                          <label className="input-label" style={{ fontSize: '11px' }}>Descrição / Observações do Item</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ height: '36px', padding: '6px 12px' }}
+                            placeholder="Ex: Sem manchas, lavar com cuidado"
+                            value={newItemForm.descricao}
+                            onChange={(e) => setNewItemForm({ ...newItemForm, descricao: e.target.value })}
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                          <div className="input-group" style={{ margin: 0 }}>
+                            <label className="input-label" style={{ fontSize: '11px' }}>Status</label>
+                            <select
+                              className="form-select"
+                              style={{ height: '36px', padding: '6px' }}
+                              value={newItemForm.status}
+                              onChange={(e) => setNewItemForm({ ...newItemForm, status: e.target.value })}
+                            >
+                              <option value="pendente">Pendente</option>
+                              <option value="em andamento">Em Andamento</option>
+                              <option value="pronto">Pronto</option>
+                              <option value="finalizado">Finalizado</option>
+                              <option value="entregue">Entregue</option>
+                            </select>
+                          </div>
+                          <div className="input-group" style={{ margin: 0 }}>
+                            <label className="input-label" style={{ fontSize: '11px' }}>Valor do Item (R$)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-input"
+                              style={{ height: '36px', padding: '6px 12px' }}
+                              value={newItemForm.valor_total}
+                              onChange={(e) => setNewItemForm({ ...newItemForm, valor_total: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn-small primary"
+                          style={{ marginTop: '15px', width: '100%', height: '36px' }}
+                          onClick={handleCreateItem}
+                        >
+                          Salvar Item no Pedido
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}

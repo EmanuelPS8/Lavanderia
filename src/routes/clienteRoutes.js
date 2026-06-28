@@ -63,8 +63,20 @@ const Cliente = require('../models/Cliente');
  * @swagger
  * /clientes:
  *   get:
- *     summary: Retorna todos os clientes
+ *     summary: Retorna todos os clientes (permite filtrar por nome ou data)
  *     tags: [Clientes - Emanuel Pereira Schlickmann]
+ *     parameters:
+ *       - in: query
+ *         name: nome
+ *         schema:
+ *           type: string
+ *         description: Filtrar por parte do nome
+ *       - in: query
+ *         name: data
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filtrar por data de criação (AAAA-MM-DD)
  *     responses:
  *       200:
  *         description: Lista de todos os clientes
@@ -78,7 +90,18 @@ const Cliente = require('../models/Cliente');
 // GET all clients
 router.get('/', async (req, res) => {
   try {
-    const clientes = await Cliente.find();
+    const { nome, data } = req.query;
+    let query = {};
+    if (nome) {
+      query.nome = { $regex: nome, $options: 'i' };
+    }
+    if (data) {
+      query.created_at = {
+        $gte: new Date(`${data}T00:00:00.000Z`),
+        $lte: new Date(`${data}T23:59:59.999Z`)
+      };
+    }
+    const clientes = await Cliente.find(query);
     return res.json(clientes);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao buscar clientes', error: error.message });
