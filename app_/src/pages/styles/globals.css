@@ -484,6 +484,7 @@ body::after {
   background: var(--bg-gradient);
   color: var(--text-main);
   font-family: var(--font-family);
+  overflow-x: hidden;
 }
 
 .admin-sidebar {
@@ -569,7 +570,7 @@ body::after {
   display: flex;
   flex-direction: column;
   padding: 40px;
-  overflow-y: auto;
+  overflow-y: hidden;
   max-height: 100vh;
 }
 
@@ -1002,4 +1003,20 @@ body::after {
   box-shadow:
     0 0 8px rgba(157, 77, 255, 0.8),
     0 0 18px rgba(157, 77, 255, 0.5);
+}
+body.admin-page {
+  display: block;
+  overflow: hidden;
+  background-color:#150f2b;
+  background-image: none;
+}
+
+body.admin-page::before,
+body.admin-page::after {
+  display: none;
+}
+
+body.admin-page #__next {
+  width: 100%;
+  height: 100vh;
 }

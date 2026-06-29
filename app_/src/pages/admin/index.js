@@ -65,7 +65,10 @@ export default function AdminDashboard() {
   const [newServiceForm, setNewServiceForm] = useState({});
 
   useEffect(() => {
+    document.body.classList.add('admin-page');
+
     const savedUser = localStorage.getItem('admin_user');
+
     if (!savedUser) {
       router.push('/login');
     } else {
@@ -73,6 +76,10 @@ export default function AdminDashboard() {
       loadAllData();
       setLoading(false);
     }
+
+    return () => {
+      document.body.classList.remove('admin-page');
+    };
   }, []);
 
   useEffect(() => {
@@ -116,6 +123,51 @@ export default function AdminDashboard() {
 
   const parseCurrencyToNumber = (val) => {
     return Number(val.replace(/\s/g, '').replace('R$', '').replace(/\./g, '').replace(',', '.'));
+  };
+
+  const formatCpfCnpj = (value) => {
+  const numbers = value.replace(/\D/g, '').slice(0, 14);
+
+    if (numbers.length <= 11) {
+      return numbers
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+
+    return numbers
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  };
+
+  const handleCpfCnpjChange = (e) => {
+    setClientForm({
+      ...clientForm,
+      cpf_cnpj: formatCpfCnpj(e.target.value)
+    });
+  };
+
+  const formatTelefone = (value) => {
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+
+    if (numbers.length <= 10) {
+      return numbers
+        .replace(/^(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+
+    return numbers
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2');
+  };
+
+  const handleTelefoneChange = (e) => {
+    setClientForm({
+      ...clientForm,
+      telefone: formatTelefone(e.target.value)
+    });
   };
 
   // Open Add Form
@@ -387,25 +439,103 @@ export default function AdminDashboard() {
     );
   }
 
+  const matchesSearch = (item, fields) => {
+  if (!searchTerm.trim()) return true;
+
+  const term = searchTerm.toLowerCase();
+
+    return fields.some(field => {
+      let value = item[field];
+
+      if (!value) return false;
+
+      // Datas
+      if (value instanceof Date || field.includes('data') || field.includes('created')) {
+        value = new Date(value).toLocaleDateString('pt-BR');
+      }
+
+      return String(value).toLowerCase().includes(term);
+    });
+  };
+
   // Filtragem dos dados dependendo da aba ativa
-  const getFilteredData = () => {
-    const term = searchTerm.toLowerCase();
-    if (activeTab === 'clientes') {
-      return clientes.filter(c => c.nome?.toLowerCase().includes(term) || c.email?.toLowerCase().includes(term));
+const getFilteredData = () => {
+
+  if (activeTab === 'clientes') {
+    return clientes.filter(cliente =>
+      matchesSearch(cliente, [
+        '_id',
+        'nome',
+        'email',
+        'telefone',
+        'cpf_cnpj',
+        'created_at'
+      ])
+    );
+  }
+
+  if (activeTab === 'servicos') {
+    return servicos.filter(servico =>
+      matchesSearch(servico, [
+        '_id',
+        'nome',
+        'descricao',
+        'created_at'
+      ])
+    );
+  }
+
+  if (activeTab === 'tiposRoupa') {
+    return tiposRoupa.filter(tipo =>
+      matchesSearch(tipo, [
+        '_id',
+        'nome',
+        'descricao',
+        'created_at'
+      ])
+    );
+  }
+
+  if (activeTab === 'pedidos') {
+    return pedidos.filter(pedido => {
+
+      const cliente = pedido.cliente_id?.nome || '';
+      const usuario = pedido.usuario_id?.nome || '';
+
+      const clienteId = pedido.cliente_id?._id || '';
+      const usuarioId = pedido.usuario_id?._id || '';
+      const observacoes = pedido.observacoes || '';
+
+      return (
+        matchesSearch(pedido, [
+        '_id',
+        'status',
+        'created_at',
+        'data_entrada',
+        'data_prevista',
+        'data_saida'
+        ]) ||
+
+      cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      usuario.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clienteId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      usuarioId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      observacoes.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+  }
+
+    if (activeTab === 'usuarios') {
+      return usuarios.filter(usuario =>
+        matchesSearch(usuario, [
+          '_id',
+          'nome',
+          'email',
+          'created_at'
+        ])
+      );
     }
-    if (activeTab === 'servicos') {
-      return servicos.filter(s => s.nome?.toLowerCase().includes(term));
-    }
-    if (activeTab === 'tiposRoupa') {
-      return tiposRoupa.filter(t => t.nome?.toLowerCase().includes(term));
-    }
-    if (activeTab === 'pedidos') {
-      return pedidos.filter(p => {
-        const matchesName = p.cliente_id?.nome?.toLowerCase().includes(term);
-        const matchesStatus = p.status?.toLowerCase().includes(term);
-        return matchesName || matchesStatus;
-      });
-    }
+
     return [];
   };
 
@@ -535,6 +665,7 @@ export default function AdminDashboard() {
                         <th>Telefone</th>
                         <th>E-mail</th>
                         <th>CPF/CNPJ</th>
+                        <th>Observações</th>
                         <th>Ações</th>
                       </tr>
                     </thead>
@@ -545,6 +676,13 @@ export default function AdminDashboard() {
                           <td>{cliente.telefone || '-'}</td>
                           <td>{cliente.email || '-'}</td>
                           <td>{cliente.cpf_cnpj || '-'}</td>
+                          <td>
+                            {cliente.observacoes
+                              ? cliente.observacoes.length > 40
+                                ? cliente.observacoes.substring(0, 40) + '...'
+                                : cliente.observacoes
+                              : '-'}
+                          </td>
                           <td>
                             <div className="actions-cell">
                               <button className="btn-icon" onClick={() => openDetail('clientes', cliente)} title="Ver Detalhes">
@@ -645,6 +783,7 @@ export default function AdminDashboard() {
                         <th>Cliente</th>
                         <th>Entrada</th>
                         <th>Previsão</th>
+                        <th>Observações</th>
                         <th>Valor Total</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -656,7 +795,10 @@ export default function AdminDashboard() {
                           <td>{pedido.cliente_id?.nome || 'Cliente Desconhecido'}</td>
                           <td>{new Date(pedido.data_entrada).toLocaleDateString('pt-BR')}</td>
                           <td>{pedido.data_prevista ? new Date(pedido.data_prevista).toLocaleDateString('pt-BR') : '-'}</td>
+                          <td>{pedido.observacoes || '-'}</td>
+
                           <td>R$ {(pedido.valor_total || 0).toFixed(2)}</td>
+                          
                           <td>
                             <span className={`badge ${
                               pedido.status === 'finalizado' ? 'badge-success' :
@@ -728,7 +870,7 @@ export default function AdminDashboard() {
                         className={`form-input ${clientErrors.telefone ? 'input-error' : ''}`}
                         style={{ paddingLeft: '20px' }}
                         value={clientForm.telefone}
-                        onChange={(e) => setClientForm({ ...clientForm, telefone: e.target.value })}
+                        onChange={handleTelefoneChange}
                       />
                     </div>
                     <div className="input-group">
@@ -748,7 +890,7 @@ export default function AdminDashboard() {
                         className={`form-input ${clientErrors.cpf_cnpj ? 'input-error' : ''}`}
                         style={{ paddingLeft: '20px' }}
                         value={clientForm.cpf_cnpj}
-                        onChange={(e) => setClientForm({ ...clientForm, cpf_cnpj: e.target.value })}
+                        onChange={handleCpfCnpjChange}
                       />
                     </div>
                     <div className="input-group">
@@ -989,6 +1131,12 @@ export default function AdminDashboard() {
                     <div className="detail-item">
                       <span className="detail-label">Previsão de Saída</span>
                       <span className="detail-val">{detailData.data_prevista ? new Date(detailData.data_prevista).toLocaleDateString('pt-BR') : '-'}</span>
+                    </div>
+                    <div className="detail-item" style={{ gridColumn: '1 / -1' }}>
+                        <span className="detail-label">Observações</span>
+                        <span className="detail-val">
+                            {detailData.observacoes || '-'}
+                        </span>
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Valor Total</span>

@@ -15,17 +15,25 @@ export default function UsersList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.body.classList.add('admin-page');
+
     const saved = localStorage.getItem('admin_user');
+
     if (!saved) {
       router.push('/login');
     } else {
       const u = JSON.parse(saved);
+
       if (u.perfil !== 'admin') {
         router.push('/admin');
       } else {
         fetchUsers();
       }
     }
+
+    return () => {
+      document.body.classList.remove('admin-page');
+    };
   }, []);
 
   const fetchUsers = async () => {
@@ -39,10 +47,25 @@ export default function UsersList() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter((u) => {
+    const term = searchTerm.toLowerCase();
+
+    return (
+      (u._id || '').toLowerCase().includes(term) ||
+      (u.nome || '').toLowerCase().includes(term) ||
+      (u.email || '').toLowerCase().includes(term) ||
+      (u.perfil || '').toLowerCase().includes(term) ||
+      (u.ativo ? 'ativo' : 'inativo').includes(term) ||
+      (u.created_at
+      ? (
+          new Date(u.created_at).toLocaleDateString('pt-BR').includes(searchTerm) ||
+          String(u.created_at).includes(searchTerm)
+        ): false) ||
+      (u.updated_at
+        ? new Date(u.updated_at).toLocaleDateString('pt-BR').includes(searchTerm)
+        : false)
+    );
+  });
 
   return (
     <div className="admin-layout">
@@ -62,7 +85,7 @@ export default function UsersList() {
                 <Search size={16} className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Pesquisar usuários por nome ou e-mail..."
+                  placeholder="Pesquisar por ID, nome, e-mail ou data..."
                   className="search-input"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
