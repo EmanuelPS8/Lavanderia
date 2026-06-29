@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const PedidoItemServico = require('../models/PedidoItemServico');
+const PedidoItem = require('../models/PedidoItem');
+const { recalculatePedidoTotals } = require('../utils/totals');
 
 router.get('/', async (req, res) => {
   try {
@@ -27,8 +29,16 @@ router.post('/', async (req, res) => {
   try {
     const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
     const valor_total = preco_unitario * quantidade;
+    
     const item = new PedidoItemServico({ pedido_item_id, servico_id, preco_unitario, quantidade, valor_total });
     await item.save();
+    
+    // Recalculate totals for the order
+    const pedidoItem = await PedidoItem.findById(pedido_item_id);
+    if (pedidoItem) {
+      await recalculatePedidoTotals(pedidoItem.pedido_id);
+    }
+    
     return res.status(201).json(item);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao criar pedido item servico', error: error.message });
@@ -39,14 +49,23 @@ router.put('/:id', async (req, res) => {
   try {
     const { pedido_item_id, servico_id, preco_unitario, quantidade } = req.body;
     const valor_total = preco_unitario * quantidade;
+    
     const itemAtualizado = await PedidoItemServico.findByIdAndUpdate(
       req.params.id,
       { pedido_item_id, servico_id, preco_unitario, quantidade, valor_total },
       { new: true }
     );
+    
     if (!itemAtualizado) {
       return res.status(404).json({ message: 'Pedido item servico não encontrado' });
     }
+    
+    // Recalculate totals for the order
+    const pedidoItem = await PedidoItem.findById(pedido_item_id);
+    if (pedidoItem) {
+      await recalculatePedidoTotals(pedidoItem.pedido_id);
+    }
+    
     return res.json(itemAtualizado);
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao atualizar pedido item servico', error: error.message });
@@ -55,10 +74,19 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const itemRemovido = await PedidoItemServico.findByIdAndDelete(req.params.id);
+    const itemRemovido = await PedidoItemServico.findById(req.params.id);
     if (!itemRemovido) {
       return res.status(404).json({ message: 'Pedido item servico não encontrado' });
     }
+    
+    await PedidoItemServico.findByIdAndDelete(req.params.id);
+    
+    // Recalculate totals for the order
+    const pedidoItem = await PedidoItem.findById(itemRemovido.pedido_item_id);
+    if (pedidoItem) {
+      await recalculatePedidoTotals(pedidoItem.pedido_id);
+    }
+    
     return res.json({ message: 'Pedido item servico removido com sucesso' });
   } catch (error) {
     return res.status(500).json({ message: 'Erro ao remover pedido item servico', error: error.message });
